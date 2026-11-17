@@ -48,7 +48,7 @@ Because the application is self-contained in a single index.html file with zero 
 
 Clone or download this repository:
 
-git clone https://github.com/your-username/credit-card-budget-planner.git
+git clone https://github.com/DNdoma41/interactive_credit_card_comparison_dashboard/blob/main/interactive_credit_card_house_budget_cost_comparison.html
 
 
 Open index.html directly in any modern web browser, or deploy it statically via GitHub Pages, Netlify, or Vercel.
