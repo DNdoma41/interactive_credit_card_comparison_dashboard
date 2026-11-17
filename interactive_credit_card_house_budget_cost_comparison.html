@@ -1,0 +1,2538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Credit Card & House Budget Simulator</title>
+  <!-- Load Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Google Font Inter & JetBrains Mono for financial precision -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <!-- Load PDF.js for client-side multi-bank PDF statement text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              900: '#0a192f',
+              800: '#112240',
+              700: '#1d3557',
+              600: '#0f766e', // Refined financial teal
+              500: '#14b8a6',
+              100: '#ccfbf1',
+              50: '#f0fdfa',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Financial tabular alignment & crisp institutional range sliders */
+    body {
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      background-color: #f8fafc;
+    }
+    .num-tabular {
+      font-variant-numeric: tabular-nums;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 5px;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -6.5px;
+      background-color: #0a192f;
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      border: 2.5px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(10, 25, 47, 0.35);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+      background-color: #0f766e;
+    }
+    input[type="range"]::-moz-range-track {
+      height: 5px;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+    input[type="range"]::-moz-range-thumb {
+      background-color: #0a192f;
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      border: 2.5px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(10, 25, 47, 0.35);
+    }
+  </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-900 font-sans antialiased selection:bg-brand-900 selection:text-white num-tabular">
+  <!-- Main App Container -->
+  <div class="min-h-screen flex flex-col">
+    <!-- Top Header: Clean Financial Terminal Header -->
+    <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-3">
+            <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-brand-900 text-white font-mono font-bold text-xs tracking-tighter shadow-xs">
+              CC
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900">
+                  Credit Card Payoff &amp; House Budget Planner
+                </h1>
+                <span id="header-card-count-badge" class="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
+                  6 Cards &bull; Unlimited Files
+                </span>
+              </div>
+              <p class="text-xs text-slate-500">
+                Upload any number of bank statements to compare payoff paths and free up monthly cash flow
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Reset & Statement Note -->
+        <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <label
+            for="statement-file-input"
+            class="cursor-pointer px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 hover:bg-teal-800 text-white shadow-2xs transition active:scale-95 inline-flex items-center gap-1.5"
+          >
+            <span>+ Import Bank Statements</span>
+            <input
+              id="statement-file-input"
+              type="file"
+              multiple
+              accept=".pdf,.csv,.txt,.png,.jpg,.jpeg,.webp"
+              class="hidden"
+            />
+          </label>
+          <button
+            id="btn-clear-my-debt"
+            type="button"
+            class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-brand-900 hover:bg-brand-800 text-white shadow-2xs transition active:scale-95"
+          >
+            Enter My Own Debt
+          </button>
+          <button
+            id="btn-clear-all-data"
+            type="button"
+            class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs transition active:scale-95"
+          >
+            Clear All Data
+          </button>
+          <button
+            id="btn-restore-backup"
+            type="button"
+            class="hidden px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs transition active:scale-95"
+          >
+            &#8634; Undo / Restore Last Data
+          </button>
+          <button
+            id="btn-reset"
+            type="button"
+            class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs transition active:scale-95"
+          >
+            Load Sample
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+      <!-- Multi-Bank Statement Dropzone & Auto-Parser Bar -->
+      <section
+        id="statement-dropzone"
+        class="bg-white border-2 border-dashed border-slate-300 hover:border-brand-600 rounded-xl p-4 sm:p-5 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
+        <div class="space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-900">
+              Auto-Import Bank Statements (Unlimited Files &bull; Any Issuer)
+            </span>
+            <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+              PDF &bull; CSV &bull; TXT &bull; PNG/JPG &bull; NO FILE CAP
+            </span>
+          </div>
+          <p id="import-status-text" class="text-xs text-slate-500">
+            Drop as many statements as you need—all at once or in multiple batches—to extract balances, APRs, limits, and minimum payments across all your accounts.
+          </p>
+          <div id="uploaded-files-bar" class="flex flex-wrap items-center gap-2 pt-1.5 hidden">
+            <div id="uploaded-files-pills" class="flex flex-wrap gap-1.5"></div>
+            <button
+              id="btn-reload-uploads"
+              type="button"
+              class="text-[11px] font-mono font-semibold text-brand-600 hover:text-teal-800 underline px-1"
+            >
+              Re-load uploaded files
+            </button>
+            <button
+              id="btn-clear-uploads"
+              type="button"
+              class="text-[11px] font-mono font-semibold text-rose-600 hover:text-rose-800 underline px-1"
+            >
+              Clear file list
+            </button>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0 self-start md:self-center">
+          <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
+            <input id="chk-replace-existing" type="checkbox" checked class="rounded border-slate-300 text-brand-900 focus:ring-brand-900" />
+            <span>Replace current list</span>
+          </label>
+          <button
+            id="btn-browse-files"
+            type="button"
+            class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-brand-900 hover:bg-brand-800 text-white transition active:scale-95"
+          >
+            Select Files
+          </button>
+          <button
+            id="btn-copy-plan"
+            type="button"
+            class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition active:scale-95"
+          >
+            Copy My Action Plan
+          </button>
+        </div>
+      </section>
+
+      <!-- Top KPI Strip -->
+      <section aria-label="House Budget Live Summary" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Revolving Balance -->
+        <div class="bg-white rounded-xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Remaining Debt</span>
+            <span id="kpi-util-badge" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200/70">53.0% Util</span>
+          </div>
+          <div class="mt-2.5 flex items-baseline gap-2">
+            <span id="kpi-total-balance" class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">$50,500</span>
+          </div>
+          <p id="kpi-balance-sub" class="text-[11px] text-slate-500 mt-1.5">Down from $53,000.00 across 6 cards</p>
+        </div>
+
+        <!-- Monthly Card Payment -->
+        <div class="bg-white rounded-xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Monthly Card Bill</span>
+            <span id="kpi-payment-delta" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/60">Baseline $1,485/mo</span>
+          </div>
+          <div class="mt-2.5 flex items-baseline gap-1.5">
+            <span id="kpi-monthly-payment" class="text-2xl sm:text-3xl font-bold tracking-tight text-brand-900">$1,280</span>
+            <span class="text-xs text-slate-400 font-medium">/mo</span>
+          </div>
+          <p id="kpi-payment-sub" class="text-[11px] text-slate-500 mt-1.5">Current minimums: $1,485.00/mo</p>
+        </div>
+
+        <!-- House Budget Remaining After Debt -->
+        <div class="bg-white rounded-xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cash Left Over</span>
+            <span id="kpi-dti-badge" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-brand-50 text-brand-600 border border-brand-100">18.1% of Income</span>
+          </div>
+          <div class="mt-2.5 flex items-baseline gap-1.5">
+            <span id="kpi-free-cash" class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600">$2,564</span>
+            <span class="text-xs text-slate-400 font-medium">/mo</span>
+          </div>
+          <p id="kpi-cash-sub" class="text-[11px] text-slate-500 mt-1.5">After house bills &amp; card payments</p>
+        </div>
+
+        <!-- Winning Strategy Savings -->
+        <div class="bg-brand-900 text-white rounded-xl border border-brand-800 p-4 sm:p-5 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Best Option</span>
+            <span id="kpi-winner-tag" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-brand-600/30 text-teal-300 border border-teal-500/30">
+              Smart Consolidation
+            </span>
+          </div>
+          <div class="mt-2.5 flex items-baseline gap-2">
+            <span id="kpi-total-saved" class="text-2xl sm:text-3xl font-bold tracking-tight text-white">$45,000+</span>
+            <span class="text-xs text-teal-300 font-medium">saved</span>
+          </div>
+          <p id="kpi-winner-sub" class="text-[11px] text-slate-300 mt-1.5">Paid off in 48 mos vs. 20+ yrs on minimums</p>
+        </div>
+      </section>
+
+      <!-- Interactive Levers + House Budget Live Panel -->
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column (7 cols): Sliders -->
+        <div class="lg:col-span-7 bg-white rounded-xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+            <div>
+              <h2 class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900">Your Levers</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Move the sliders to see how your monthly payment and total interest change.</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 text-[11px] font-mono font-semibold text-brand-600 bg-brand-50 border border-brand-100 px-2.5 py-1 rounded self-start">
+              <span class="w-1.5 h-1.5 rounded-full bg-brand-600"></span>
+              LIVE
+            </span>
+          </div>
+
+          <!-- LEVER 1: Consolidation / Target Weighted APR -->
+          <div class="space-y-2.5 bg-slate-50/70 p-4 rounded-lg border border-slate-200/80">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label for="slider-apr" class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-brand-900 text-white font-mono text-[11px] flex items-center justify-center font-bold">01</span>
+                New Loan / Refinance Rate (%)
+              </label>
+              <div class="flex items-center gap-2">
+                <span id="val-apr" class="text-sm font-mono font-bold text-brand-900 bg-white px-2.5 py-1 rounded border border-slate-200">
+                  11.5%
+                </span>
+                <span id="badge-weighted-apr" class="text-[11px] font-mono text-slate-500">
+                  vs. 18.0% current avg
+                </span>
+              </div>
+            </div>
+            <input
+              id="slider-apr"
+              type="range"
+              min="0"
+              max="26"
+              step="0.5"
+              value="11.5"
+              class="w-full"
+            />
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>0% PROMO</span>
+              <span>10.5% CREDIT UNION</span>
+              <span>18.0% CURRENT AVG</span>
+              <span>26% HIGH RATE</span>
+            </div>
+            <p class="text-xs text-slate-600 pt-1 leading-relaxed">
+              <strong class="text-slate-800">Why it matters:</strong> Lowering your interest rate drops your monthly bill right away. In <em>Smart Consolidation</em>, your <strong class="text-slate-800">1.99% Retail Store balance ($9,000)</strong> stays put while only your high-rate cards move to the new rate.
+            </p>
+          </div>
+
+          <!-- LEVER 2: Extra Monthly Payment Budget -->
+          <div class="space-y-2.5 bg-slate-50/70 p-4 rounded-lg border border-slate-200/80">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label for="slider-extra" class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-brand-600 text-white font-mono text-[11px] flex items-center justify-center font-bold">02</span>
+                Monthly Payment Adjustment ($/mo)
+              </label>
+              <div class="flex items-center gap-2">
+                <span id="val-extra" class="text-sm font-mono font-bold text-brand-600 bg-white px-2.5 py-1 rounded border border-slate-200">
+                  +$200 / mo
+                </span>
+                <span id="badge-total-budget" class="text-[11px] font-mono text-slate-500">
+                  Total: $1,971/mo
+                </span>
+              </div>
+            </div>
+            <input
+              id="slider-extra"
+              type="range"
+              min="-400"
+              max="1500"
+              step="25"
+              value="200"
+              class="w-full"
+            />
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>-$400 (LOWER BILL)</span>
+              <span>$0 (MINIMUMS)</span>
+              <span>+$500/MO</span>
+              <span>+$1,500/MO</span>
+            </div>
+            <p class="text-xs text-slate-600 pt-1 leading-relaxed">
+              <strong class="text-slate-800">Why it matters:</strong> Slide left to see what happens if you need monthly payment relief; slide right to pay off your 27.99% Rewards and 26.49% Travel balances faster.
+            </p>
+          </div>
+
+          <!-- LEVER 3: Lump-Sum Principal Paydown -->
+          <div class="space-y-2.5 bg-slate-50/70 p-4 rounded-lg border border-slate-200/80">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label for="slider-lump" class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-slate-700 text-white font-mono text-[11px] flex items-center justify-center font-bold">03</span>
+                One-Time Lump Sum ($)
+              </label>
+              <div class="flex items-center gap-2">
+                <span id="val-lump" class="text-sm font-mono font-bold text-slate-900 bg-white px-2.5 py-1 rounded border border-slate-200">
+                  $2,500
+                </span>
+                <span id="badge-lump-impact" class="text-[11px] font-mono text-slate-500">
+                  Clears Navy Fed Past Due + Lowe's Exp.
+                </span>
+              </div>
+            </div>
+            <input
+              id="slider-lump"
+              type="range"
+              min="0"
+              max="25000"
+              step="250"
+              value="2500"
+              class="w-full"
+            />
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>$0</span>
+              <span>$2,500</span>
+              <span>$10,000</span>
+              <span>$25,000</span>
+            </div>
+            <p class="text-xs text-slate-600 pt-1 leading-relaxed">
+              <strong class="text-slate-800">Why it matters:</strong> Putting cash down upfront knocks out your $300 expiring Retail promo, your $150 Credit Union past-due balance, and your highest-APR balances first.
+            </p>
+          </div>
+
+          <!-- Loan Length Selector -->
+          <div class="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100">
+            <div>
+              <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Loan Length</span>
+              <p class="text-xs text-slate-500">Longer terms lower your monthly payment</p>
+            </div>
+            <div class="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200/70 self-start sm:self-auto" role="group" aria-label="Loan term selector">
+              <button type="button" data-term="36" class="term-btn px-3 py-1 text-xs font-mono font-semibold rounded text-slate-600 hover:text-slate-900 transition">36m</button>
+              <button type="button" data-term="48" class="term-btn px-3 py-1 text-xs font-mono font-semibold rounded bg-white text-brand-900 shadow-2xs transition">48m</button>
+              <button type="button" data-term="60" class="term-btn px-3 py-1 text-xs font-mono font-semibold rounded text-slate-600 hover:text-slate-900 transition">60m</button>
+              <button type="button" data-term="72" class="term-btn px-3 py-1 text-xs font-mono font-semibold rounded text-slate-600 hover:text-slate-900 transition">72m</button>
+            </div>
+          </div>
+
+          <!-- LEVER 4: Strategy Comparison Priority Slider -->
+          <div class="space-y-2.5 bg-slate-900/[0.03] p-4 rounded-lg border border-slate-200">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label for="slider-priority" class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-brand-900 text-white font-mono text-[11px] flex items-center justify-center font-bold">04</span>
+                What Matters Most to You?
+              </label>
+              <span id="val-priority" class="text-xs font-mono font-bold text-brand-900 bg-white px-2.5 py-1 rounded border border-slate-200">
+                Balanced (50% Cash Flow / 50% Cost)
+              </span>
+            </div>
+            <input
+              id="slider-priority"
+              type="range"
+              min="0"
+              max="100"
+              step="10"
+              value="50"
+              class="w-full"
+            />
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>0% &mdash; LOWEST MONTHLY BILL</span>
+              <span>50% &mdash; BALANCED</span>
+              <span>100% &mdash; LEAST TOTAL INTEREST</span>
+            </div>
+            <p class="text-xs text-slate-600 pt-1 leading-relaxed">
+              <strong class="text-slate-800">How this picks a winner:</strong> Slide left if breathing room in your monthly budget is priority #1; slide right if saving the most interest over time matters more.
+            </p>
+          </div>
+
+          <!-- Custom User-Defined Variables Section -->
+          <div class="pt-4 border-t border-slate-200 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">Your Own Variables</h3>
+                <p class="text-xs text-slate-500">Add extra sliders (like Side Income, Tax Refund, or Loan Fee) and rename them anytime.</p>
+              </div>
+              <button
+                id="btn-add-custom-var"
+                type="button"
+                class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-900 hover:bg-brand-800 text-white transition active:scale-95 self-start sm:self-auto"
+              >
+                + Add Variable
+              </button>
+            </div>
+
+            <div id="custom-variables-list" class="space-y-3">
+              <!-- Custom variable cards rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column (5 cols): House Budget Breakdown -->
+        <div class="lg:col-span-5 bg-white rounded-xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs flex flex-col justify-between space-y-5">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h2 class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900">Monthly House Budget</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Take-home pay minus fixed bills &amp; card payments</p>
+              </div>
+              <span id="budget-health-pill" class="px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                HEALTHY MARGIN
+              </span>
+            </div>
+
+            <!-- Editable Household Inputs -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-slate-50/80 p-3 rounded-lg border border-slate-200/90 focus-within:border-brand-900 transition">
+                <label for="input-income" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Monthly Take-Home Pay
+                </label>
+                <div class="mt-1 flex items-center">
+                  <span class="text-slate-400 font-mono font-bold mr-1">$</span>
+                  <input
+                    id="input-income"
+                    type="number"
+                    min="1000"
+                    max="50000"
+                    step="100"
+                    value="8500"
+                    class="w-full bg-transparent font-mono font-bold text-slate-900 text-base focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div class="bg-slate-50/80 p-3 rounded-lg border border-slate-200/90 focus-within:border-brand-900 transition">
+                <label for="input-fixed" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Fixed House &amp; Bills
+                </label>
+                <div class="mt-1 flex items-center">
+                  <span class="text-slate-400 font-mono font-bold mr-1">$</span>
+                  <input
+                    id="input-fixed"
+                    type="number"
+                    min="0"
+                    max="40000"
+                    step="100"
+                    value="4400"
+                    class="w-full bg-transparent font-mono font-bold text-slate-900 text-base focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Stacked Visual Bar of House Budget -->
+            <div class="space-y-2 pt-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <span class="text-slate-700">Where Your Paycheck Goes</span>
+                <span id="budget-total-label" class="font-mono text-slate-500">$8,500 Total</span>
+              </div>
+              <div class="w-full h-3.5 rounded bg-slate-100 overflow-hidden flex border border-slate-200/60">
+                <div id="bar-fixed" class="bg-slate-400 h-full transition-all duration-300" style="width: 51.8%" title="Fixed House & Living"></div>
+                <div id="bar-debt" class="bg-brand-900 h-full transition-all duration-300" style="width: 19.9%" title="Credit Card / Debt Payment"></div>
+                <div id="bar-free" class="bg-brand-600 h-full transition-all duration-300" style="width: 28.3%" title="Remaining Free Cash Flow"></div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-[11px] pt-1 font-mono">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-xs bg-slate-400 shrink-0"></span>
+                  <span class="text-slate-600 truncate">Bills: <strong id="leg-fixed" class="text-slate-900">$4,400</strong></span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-xs bg-brand-900 shrink-0"></span>
+                  <span class="text-slate-600 truncate">Cards: <strong id="leg-debt" class="text-slate-900">$1,691</strong></span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-xs bg-brand-600 shrink-0"></span>
+                  <span class="text-slate-600 truncate">Left: <strong id="leg-free" class="text-brand-600">$2,409</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Side-by-Side Monthly Cash Flow Comparison Ledger -->
+            <div class="bg-slate-50/70 rounded-lg border border-slate-200/80 p-3.5 space-y-2">
+              <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Monthly Payment Comparison
+              </div>
+              <div class="space-y-1.5 text-xs">
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-200/70">
+                  <span id="mini-mins-label" class="text-slate-600">Current Minimums (6 Cards)</span>
+                  <span id="mini-mins-pmt" class="font-mono font-semibold text-slate-900">$1,485 / mo</span>
+                </div>
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-200/70">
+                  <span class="text-slate-600">Smart Consolidation Payment</span>
+                  <span id="mini-consol-pmt" class="font-mono font-bold text-brand-900">$1,280 / mo</span>
+                </div>
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-200/70">
+                  <span id="mini-full-label" class="text-slate-600">Full Consolidation (All Cards)</span>
+                  <span id="mini-full-pmt" class="font-mono font-semibold text-slate-700">$1,325 / mo</span>
+                </div>
+                <div class="flex justify-between items-center pt-1.5">
+                  <span class="font-bold text-slate-800">Monthly Cash Freed Up</span>
+                  <span id="mini-freed-cash" class="font-mono font-bold text-emerald-600 text-sm">+$205 / mo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200/80 rounded-lg p-3 text-xs text-slate-600 leading-relaxed">
+            <strong class="text-slate-900">Bottom Line:</strong> Moving your 25%–28% card balances into a lower fixed rate drops your monthly bill right away and cuts 15+ years off your payoff date.
+          </div>
+        </div>
+      </section>
+
+      <!-- Side-by-Side Strategy Comparison Cards (4 Options) -->
+      <section aria-label="Side-by-Side Strategy Comparison" class="space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold uppercase tracking-wider text-slate-900">Side-by-Side Options</h2>
+            <p id="strategy-section-sub" class="text-xs text-slate-500">
+              How all 4 payoff paths compare across all loaded accounts.
+            </p>
+          </div>
+          <div id="winner-criteria-label" class="text-[11px] font-mono font-semibold text-brand-900 bg-white border border-slate-200 px-3 py-1 rounded self-start sm:self-auto">
+            Priority: Balanced Cash Flow + Total Interest
+          </div>
+        </div>
+
+        <div id="strategy-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <!-- Populated dynamically by JavaScript -->
+        </div>
+
+        <!-- How to Make the Best Selection Decision Guide -->
+        <div class="bg-white rounded-xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs mt-4 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900">How to Pick the Best Option</h3>
+              <p class="text-xs text-slate-500">Three quick rules based on your statements and current slider settings</p>
+            </div>
+            <span id="selection-verdict-badge" class="text-[11px] font-mono font-bold px-3 py-1 rounded bg-brand-50 text-brand-600 border border-brand-100 self-start sm:self-auto">
+              BEST PICK: SMART CONSOLIDATION
+            </span>
+          </div>
+
+          <div id="selection-guidance-body" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+            <!-- Dynamically updated recommendation cards -->
+          </div>
+
+          <!-- Step-by-Step Card Attack Order -->
+          <div class="pt-3 border-t border-slate-100 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Recommended Payoff Order (Highest Interest Rate First)</span>
+              <span class="text-[11px] font-mono text-slate-400">Pay minimums on all cards, put extra cash on #1</span>
+            </div>
+            <div id="attack-order-strip" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Interactive Balance Trajectory Chart (SVG) -->
+      <section class="bg-white rounded-xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900">Payoff Timeline (Next 7 Years)</h2>
+            <p class="text-xs text-slate-500">Remaining balance across all 4 options over 84 months</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-4 text-[11px] font-mono font-semibold">
+            <span class="inline-flex items-center gap-1.5 text-slate-600">
+              <span class="w-3 h-0.5 bg-rose-500"></span> Minimums
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-slate-600">
+              <span class="w-3 h-0.5 bg-amber-500"></span> Avalanche
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-slate-900">
+              <span class="w-3 h-1 bg-brand-900"></span> Smart Consol.
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-slate-600">
+              <span class="w-3 h-0.5 bg-brand-600"></span> Full Consol.
+            </span>
+          </div>
+        </div>
+
+        <div class="w-full overflow-hidden pt-1">
+          <svg id="trajectory-chart" viewBox="0 0 800 260" class="w-full h-56 sm:h-64 overflow-visible" role="img" aria-label="Debt payoff curve comparison"></svg>
+        </div>
+      </section>
+
+      <!-- Your Statement Data Table (Editable + Add Card) -->
+      <section class="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+        <div class="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 id="cards-table-heading" class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900">Your 6 Credit Cards</h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Click any balance, rate, or minimum payment below to edit—everything updates live.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              id="btn-remove-all-cards"
+              type="button"
+              class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition active:scale-95"
+            >
+              Delete All Cards
+            </button>
+            <button
+              id="btn-add-card"
+              type="button"
+              class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-brand-900 hover:bg-brand-800 text-white transition active:scale-95"
+            >
+              + Add Card
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/90 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <th class="py-3 px-4">Card</th>
+                <th class="py-3 px-4">Balance</th>
+                <th class="py-3 px-4">Credit Limit</th>
+                <th class="py-3 px-4">Utilization</th>
+                <th class="py-3 px-4">APR</th>
+                <th class="py-3 px-4">Min Payment</th>
+                <th class="py-3 px-4">Statement Notes</th>
+                <th class="py-3 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="cards-tbody" class="divide-y divide-slate-100 text-xs">
+              <!-- Populated dynamically -->
+            </tbody>
+            <tfoot class="bg-slate-50 border-t border-slate-200 font-mono font-bold text-xs text-slate-900">
+              <tr>
+                <td id="foot-count-label" class="py-3.5 px-4 font-sans">TOTAL (6 CARDS)</td>
+                <td id="foot-balance" class="py-3.5 px-4">$53,000.00</td>
+                <td id="foot-limit" class="py-3.5 px-4">$100,000.00</td>
+                <td id="foot-util" class="py-3.5 px-4">53.0%</td>
+                <td id="foot-apr" class="py-3.5 px-4">18.15%</td>
+                <td id="foot-min" class="py-3.5 px-4">$1,485.00</td>
+                <td colspan="2" class="py-3.5 px-4 font-sans text-[11px] font-normal text-slate-500">
+                  Average rate weighted by balance
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200/90 py-4 px-4 sm:px-6 lg:px-8 text-center text-[11px] font-mono text-slate-400">
+      CREDIT CARD PAYOFF &amp; HOUSE BUDGET PLANNER &bull; LIVE MONTHLY INTEREST &amp; CASH-FLOW CALCULATOR
+    </footer>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // =========================================================================
+    // 1. SYNTHETIC PORTFOLIO DATA (Anonymized 6-card sample @ 53.0% utilization)
+    // =========================================================================
+    const INITIAL_CARDS = [
+      {
+        id: 'card-cu-visa',
+        name: 'Credit Union Visa',
+        balance: 18500.00,
+        limit: 22000.00,
+        apr: 12.25,
+        minPayment: 585.00,
+        promoKeepBalance: 0,
+        promoKeepApr: 0,
+        promoKeepPayment: 0,
+        note: 'Includes $150.00 past due; $4.5k cash adv @ 18%'
+      },
+      {
+        id: 'card-cashback',
+        name: 'Cashback Mastercard',
+        balance: 14200.00,
+        limit: 20000.00,
+        apr: 24.99,
+        minPayment: 340.00,
+        promoKeepBalance: 0,
+        promoKeepApr: 0,
+        promoKeepPayment: 0,
+        note: 'Highest monthly interest drain ($295.72/mo)'
+      },
+      {
+        id: 'card-retail',
+        name: 'Home Improvement Store Card',
+        balance: 10500.00,
+        limit: 16000.00,
+        apr: 5.40,
+        minPayment: 345.00,
+        promoKeepBalance: 9000.00, // Keep this 1.99% Fixed Pay out of higher-rate consolidation
+        promoKeepApr: 1.99,
+        promoKeepPayment: 295.00,
+        note: '$9,000 @ 1.99% Fixed Pay; $300 promo exp next mo'
+      },
+      {
+        id: 'card-travel',
+        name: 'Airline Travel Visa',
+        balance: 3800.00,
+        limit: 18000.00,
+        apr: 26.49,
+        minPayment: 110.00,
+        promoKeepBalance: 0,
+        promoKeepApr: 0,
+        promoKeepPayment: 0,
+        note: '26.49% variable APR ($83.88 interest/mo)'
+      },
+      {
+        id: 'card-rewards',
+        name: 'Everyday Rewards Card',
+        balance: 3200.00,
+        limit: 15000.00,
+        apr: 27.99,
+        minPayment: 70.00,
+        promoKeepBalance: 0,
+        promoKeepApr: 0,
+        promoKeepPayment: 0,
+        note: '27.99% variable APR on recent purchases'
+      },
+      {
+        id: 'card-member',
+        name: 'Member Classic Amex',
+        balance: 2800.00,
+        limit: 9000.00,
+        apr: 16.90,
+        minPayment: 35.00,
+        promoKeepBalance: 0,
+        promoKeepApr: 0,
+        promoKeepPayment: 0,
+        note: 'Standard revolving balance @ 16.90% APR'
+      }
+    ];
+
+    let cards = JSON.parse(JSON.stringify(INITIAL_CARDS));
+    let lastDeletedSnapshot = null; // Stores previous state before any delete/clear for instant Undo
+    let cachedUploadedBatches = []; // Keeps parsed accounts from uploaded files in memory so they can be reloaded anytime
+    let customVars = [
+      {
+        id: 'cv-1',
+        name: 'Side Income / Expense Cut',
+        type: 'monthly_income',
+        value: 0
+      }
+    ];
+    let state = {
+      consolApr: 11.5,
+      extraMonthly: 200,
+      lumpSum: 2500,
+      loanTerm: 48,
+      priorityWeight: 50, // 0 = 100% Monthly Payment Relief, 100 = 100% Lowest Total Interest
+      netIncome: 8200,
+      fixedExpenses: 4200
+    };
+
+    /**
+     * Saves a snapshot of current cards & sliders before any destructive delete/clear action
+     */
+    function saveUndoSnapshot(label) {
+      if (cards.length > 0) {
+        lastDeletedSnapshot = {
+          label,
+          cards: JSON.parse(JSON.stringify(cards)),
+          state: { ...state }
+        };
+        const restoreBtn = document.getElementById('btn-restore-backup');
+        if (restoreBtn) {
+          restoreBtn.textContent = `↺ Restore (${cards.length} card${cards.length === 1 ? '' : 's'})`;
+          restoreBtn.classList.remove('hidden');
+        }
+      }
+    }
+
+    /**
+     * Restores the most recently cleared or deleted dataset
+     */
+    function restoreLastSnapshot() {
+      if (!lastDeletedSnapshot || !lastDeletedSnapshot.cards) return;
+      cards = JSON.parse(JSON.stringify(lastDeletedSnapshot.cards));
+      state = { ...state, ...lastDeletedSnapshot.state };
+      const sliderLumpEl = document.getElementById('slider-lump');
+      const sliderExtraEl = document.getElementById('slider-extra');
+      if (sliderLumpEl) sliderLumpEl.value = state.lumpSum;
+      if (sliderExtraEl) sliderExtraEl.value = state.extraMonthly;
+
+      const restoreBtn = document.getElementById('btn-restore-backup');
+      if (restoreBtn) restoreBtn.classList.add('hidden');
+      lastDeletedSnapshot = null;
+
+      renderCardsTable();
+      updateDashboard();
+    }
+
+    // Currency & number formatters
+    const fmtCurrency = (val) =>
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+    const fmtCurrencyExact = (val) =>
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+
+    // =========================================================================
+    // 2. FINANCIAL SIMULATION ENGINE
+    // =========================================================================
+
+    /**
+     * Standard fixed-rate loan monthly payment formula
+     */
+    function calcLoanPayment(principal, annualApr, months) {
+      if (principal <= 0) return 0;
+      if (annualApr <= 0) return principal / months;
+      const r = annualApr / 100 / 12;
+      return (principal * r) / (1 - Math.pow(1 + r, -months));
+    }
+
+    /**
+     * Simulates month-by-month payoff of multi-card portfolio using Avalanche (highest APR first)
+     * Returns { months, totalInterest, totalPaid, firstMonthPayment, history }
+     */
+    function simulateMultiCardPayoff({ cardList, lumpSum, extraMonthly, minimumOnly = false }) {
+      // Clone cards & sort descending by APR for Avalanche targeting
+      let items = cardList.map(c => ({
+        ...c,
+        bal: Math.max(0, c.balance)
+      })).sort((a, b) => b.apr - a.apr);
+
+      // Apply upfront lump sum to highest APR balances first
+      let remainingLump = lumpSum;
+      for (let item of items) {
+        if (remainingLump <= 0) break;
+        const cut = Math.min(item.bal, remainingLump);
+        item.bal -= cut;
+        remainingLump -= cut;
+      }
+
+      const startingTotal = items.reduce((s, c) => s + c.bal, 0);
+      const baseMinSum = items.reduce((s, c) => (c.bal > 0 ? s + c.minPayment : s), 0);
+      const targetBudget = minimumOnly ? baseMinSum : Math.max(250, baseMinSum + extraMonthly);
+
+      let months = 0;
+      let totalInterest = 0;
+      let totalPaid = lumpSum;
+      const maxMonths = 360; // Cap at 30 years for display
+      const history = [startingTotal];
+
+      let firstMonthPayment = 0;
+
+      while (months < maxMonths) {
+        const currentTotal = items.reduce((s, c) => s + c.bal, 0);
+        if (currentTotal <= 0.01) break;
+        months++;
+
+        // Accrue monthly interest on each card
+        let monthRequiredMins = 0;
+        for (let item of items) {
+          if (item.bal <= 0) continue;
+          const monthlyInterest = item.bal * (item.apr / 100 / 12);
+          item.bal += monthlyInterest;
+          totalInterest += monthlyInterest;
+
+          // Standard card minimum: greater of $25 or (1% of balance + monthly interest), capped at balance
+          const dynamicMin = Math.max(25, item.bal * 0.01 + monthlyInterest);
+          item.reqMin = Math.min(item.bal, Math.max(item.minPayment * (item.bal / Math.max(1, item.balance)), dynamicMin));
+          if (minimumOnly) {
+            item.reqMin = Math.min(item.bal, dynamicMin);
+          }
+          monthRequiredMins += item.reqMin;
+        }
+
+        // Determine total cash spent this month
+        let availablePayment = minimumOnly
+          ? monthRequiredMins
+          : Math.max(monthRequiredMins, targetBudget);
+
+        if (months === 1) {
+          firstMonthPayment = Math.min(availablePayment, items.reduce((s, c) => s + c.bal, 0));
+        }
+
+        // 1) Pay required minimums on all cards
+        let remainingCash = availablePayment;
+        for (let item of items) {
+          if (item.bal <= 0) continue;
+          const pay = Math.min(item.bal, item.reqMin, remainingCash);
+          item.bal -= pay;
+          remainingCash -= pay;
+          totalPaid += pay;
+        }
+
+        // 2) Avalanche: Throw any leftover cash at highest-APR active card
+        for (let item of items) {
+          if (remainingCash <= 0.01) break;
+          if (item.bal <= 0) continue;
+          const extraPay = Math.min(item.bal, remainingCash);
+          item.bal -= extraPay;
+          remainingCash -= extraPay;
+          totalPaid += extraPay;
+        }
+
+        if (months % 3 === 0 || months <= 12) {
+          history.push(Math.max(0, items.reduce((s, c) => s + c.bal, 0)));
+        }
+      }
+
+      return {
+        months,
+        totalInterest,
+        totalPaid,
+        firstMonthPayment,
+        history
+      };
+    }
+
+    /**
+     * Simulates Smart Consolidation (keeps 1.99% Lowe's promo intact, refinances high-APR debt)
+     * vs Full Consolidation (refinances 100% of remaining debt into 1 loan)
+     */
+    function simulateConsolidation({ cardList, lumpSum, consolApr, loanTerm, smartMode = true }) {
+      let remainingLump = lumpSum;
+
+      // Sort descending by APR so lump sum pays off highest-APR debt first
+      let sorted = cardList.map(c => ({ ...c })).sort((a, b) => b.apr - a.apr);
+
+      let protectedPromoBal = 0;
+      let protectedPromoApr = 1.99;
+      let protectedPromoPmt = 0;
+      let refinancePrincipal = 0;
+
+      for (let c of sorted) {
+        let totalCardBal = c.balance;
+        // Apply lump sum to card's highest-rate portion first
+        const lumpApplied = Math.min(totalCardBal, remainingLump);
+        totalCardBal -= lumpApplied;
+        remainingLump -= lumpApplied;
+
+        if (smartMode && c.promoKeepBalance > 0) {
+          // Keep the 1.99% Fixed Pay balance out of the higher-rate consolidation loan
+          const promoKept = Math.min(totalCardBal, c.promoKeepBalance);
+          const highRatePart = Math.max(0, totalCardBal - promoKept);
+          protectedPromoBal += promoKept;
+          protectedPromoApr = c.promoKeepApr || 1.99;
+          protectedPromoPmt += promoKept > 0 ? c.promoKeepPayment : 0;
+          refinancePrincipal += highRatePart;
+        } else {
+          refinancePrincipal += totalCardBal;
+        }
+      }
+
+      const loanMonthlyPmt = calcLoanPayment(refinancePrincipal, consolApr, loanTerm);
+      const loanTotalInterest = Math.max(0, loanMonthlyPmt * loanTerm - refinancePrincipal);
+
+      // Simulate protected 1.99% promo runoff alongside the consolidation loan
+      let promoBal = protectedPromoBal;
+      let promoMonths = 0;
+      let promoInterest = 0;
+      const promoHistory = [promoBal];
+
+      while (promoBal > 0.01 && promoMonths < 120) {
+        promoMonths++;
+        const interest = promoBal * (protectedPromoApr / 100 / 12);
+        promoBal += interest;
+        promoInterest += interest;
+        const pay = Math.min(promoBal, Math.max(50, protectedPromoPmt));
+        promoBal -= pay;
+        if (promoMonths % 3 === 0 || promoMonths <= 12) {
+          promoHistory.push(Math.max(0, promoBal));
+        }
+      }
+
+      // Build combined balance curve
+      const maxHorizon = Math.max(loanTerm, promoMonths);
+      const history = [];
+      for (let m = 0; m <= 84; m += 3) {
+        // Remaining loan balance at month m
+        let remLoan = 0;
+        if (m < loanTerm && refinancePrincipal > 0) {
+          if (consolApr <= 0) {
+            remLoan = refinancePrincipal * (1 - m / loanTerm);
+          } else {
+            const r = consolApr / 100 / 12;
+            remLoan =
+              refinancePrincipal *
+              ((Math.pow(1 + r, loanTerm) - Math.pow(1 + r, m)) / (Math.pow(1 + r, loanTerm) - 1));
+          }
+        }
+        // Approximate remaining promo balance at month m
+        let remPromo = 0;
+        if (m < promoMonths && protectedPromoBal > 0) {
+          remPromo = protectedPromoBal * Math.max(0, 1 - m / promoMonths);
+        }
+        history.push(Math.max(0, remLoan + remPromo));
+      }
+
+      return {
+        months: refinancePrincipal > 0 ? Math.max(loanTerm, promoMonths) : promoMonths,
+        firstMonthPayment: loanMonthlyPmt + (protectedPromoBal > 0 ? protectedPromoPmt : 0),
+        loanOnlyPayment: loanMonthlyPmt,
+        protectedPromoPmt: protectedPromoBal > 0 ? protectedPromoPmt : 0,
+        refinancePrincipal,
+        protectedPromoBal,
+        totalInterest: loanTotalInterest + promoInterest,
+        totalPaid: lumpSum + refinancePrincipal + protectedPromoBal + loanTotalInterest + promoInterest,
+        history
+      };
+    }
+
+    // =========================================================================
+    // 3. UI RENDERING & LIVE UPDATES
+    // =========================================================================
+
+    function updateDashboard() {
+      // Aggregate effects from user-defined custom variables
+      let customMonthlyIncome = 0;
+      let customExtraMonthlyDebt = 0;
+      let customLumpSum = 0;
+      let customConsolFeePct = 0;
+
+      for (let cv of customVars) {
+        if (cv.type === 'monthly_income') customMonthlyIncome += cv.value;
+        else if (cv.type === 'monthly_debt') customExtraMonthlyDebt += cv.value;
+        else if (cv.type === 'lump_sum') customLumpSum += cv.value;
+        else if (cv.type === 'consol_fee_pct') customConsolFeePct += cv.value;
+      }
+
+      const effectiveNetIncome = Math.max(0, state.netIncome + customMonthlyIncome);
+      const effectiveExtraMonthly = state.extraMonthly + customExtraMonthlyDebt;
+      const effectiveLumpSum = Math.max(0, state.lumpSum + customLumpSum);
+      const effectiveConsolApr = Math.max(0, state.consolApr + customConsolFeePct * 0.4); // Annualized impact of origination fee
+
+      // Calculate portfolio totals
+      const rawTotalBalance = cards.reduce((sum, c) => sum + c.balance, 0);
+      const totalLimit = cards.reduce((sum, c) => sum + c.limit, 0);
+      const rawMinSum = cards.reduce((sum, c) => sum + c.minPayment, 0);
+      const weightedApr =
+        rawTotalBalance > 0
+          ? cards.reduce((sum, c) => sum + c.balance * c.apr, 0) / rawTotalBalance
+          : 0;
+
+      const activeBalanceAfterLump = Math.max(0, rawTotalBalance - effectiveLumpSum);
+      const utilizationPct = totalLimit > 0 ? (activeBalanceAfterLump / totalLimit) * 100 : 0;
+
+      // Run all 4 scenario models
+      const baselineMin = simulateMultiCardPayoff({
+        cardList: cards,
+        lumpSum: 0,
+        extraMonthly: 0,
+        minimumOnly: true
+      });
+
+      const avalanchePlan = simulateMultiCardPayoff({
+        cardList: cards,
+        lumpSum: effectiveLumpSum,
+        extraMonthly: effectiveExtraMonthly,
+        minimumOnly: false
+      });
+
+      const smartConsol = simulateConsolidation({
+        cardList: cards,
+        lumpSum: effectiveLumpSum,
+        consolApr: effectiveConsolApr,
+        loanTerm: state.loanTerm,
+        smartMode: true
+      });
+
+      const fullConsol = simulateConsolidation({
+        cardList: cards,
+        lumpSum: effectiveLumpSum,
+        consolApr: effectiveConsolApr,
+        loanTerm: state.loanTerm,
+        smartMode: false
+      });
+
+      // Determine winning strategy (lowest total interest + lowest monthly burden balance)
+      const strategies = [
+        {
+          id: 'baseline',
+          name: '1. Minimums Only (Status Quo)',
+          badge: 'Baseline',
+          badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+          accentBorder: 'border-slate-200',
+          monthlyPayment: baselineMin.firstMonthPayment,
+          months: baselineMin.months,
+          totalInterest: baselineMin.totalInterest,
+          totalCost: baselineMin.totalPaid,
+          description: 'Paying only statement minimums with $0 lump sum. High APRs compound for decades.',
+          highlights: [
+            `Takes ${(baselineMin.months / 12).toFixed(1)} yrs to clear`,
+            `Highest interest drain (${fmtCurrency(baselineMin.totalInterest)})`
+          ],
+          history: baselineMin.history
+        },
+        {
+          id: 'avalanche',
+          name: '2. Keep Cards + Debt Avalanche',
+          badge: effectiveExtraMonthly > 0 ? 'No New Loan' : 'Needs +Budget',
+          badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+          accentBorder: 'border-slate-200',
+          monthlyPayment: avalanchePlan.firstMonthPayment,
+          months: avalanchePlan.months,
+          totalInterest: avalanchePlan.totalInterest,
+          totalCost: avalanchePlan.totalPaid,
+          description: `Keep all ${cards.length} account${cards.length === 1 ? '' : 's'}; apply lump sum & extra monthly cash strictly to highest-APR balances first.`,
+          highlights: [
+            `Preserves low-APR promotional balances`,
+            effectiveExtraMonthly < 0
+              ? 'Warning: Below current card minimums'
+              : `Targets steepest interest rates first`
+          ],
+          history: avalanchePlan.history
+        },
+        {
+          id: 'smart-consol',
+          name: '3. Smart Consolidation (Hybrid)',
+          badge: 'Optimal Hybrid',
+          badgeClass: 'bg-brand-50 text-brand-600 border-brand-100',
+          accentBorder: 'border-brand-900 ring-2 ring-brand-900/15',
+          monthlyPayment: smartConsol.firstMonthPayment,
+          months: smartConsol.months,
+          totalInterest: smartConsol.totalInterest,
+          totalCost: smartConsol.totalPaid,
+          description: `Refinance high-APR balances at ${effectiveConsolApr.toFixed(1)}% over ${state.loanTerm} mos while keeping low-APR promos intact.`,
+          highlights: [
+            smartConsol.protectedPromoBal > 0
+              ? `Loan: ${fmtCurrency(smartConsol.loanOnlyPayment)}/mo + Low-APR promo ${fmtCurrency(smartConsol.protectedPromoPmt)}/mo`
+              : `Single consolidated loan payment: ${fmtCurrency(smartConsol.loanOnlyPayment)}/mo`,
+            `Saves ${fmtCurrency(Math.max(0, baselineMin.totalInterest - smartConsol.totalInterest))} vs minimums`
+          ],
+          history: smartConsol.history
+        },
+        {
+          id: 'full-consol',
+          name: '4. Full Consolidation (1 Bill)',
+          badge: 'Single Facility',
+          badgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+          accentBorder: 'border-slate-200',
+          monthlyPayment: fullConsol.firstMonthPayment,
+          months: fullConsol.months,
+          totalInterest: fullConsol.totalInterest,
+          totalCost: fullConsol.totalPaid,
+          description: `Roll all ${cards.length} account${cards.length === 1 ? '' : 's'} into 1 fixed payment at ${effectiveConsolApr.toFixed(1)}% APR for ${state.loanTerm} months.`,
+          highlights: [
+            `Single monthly auto-pay (${fmtCurrency(fullConsol.firstMonthPayment)}/mo)`,
+            effectiveConsolApr > 2
+              ? `Refinances every balance at ${effectiveConsolApr.toFixed(1)}%`
+              : `Great rate across entire balance`
+          ],
+          history: fullConsol.history
+        }
+      ];
+
+      // Pick winner among actionable options (2, 3, 4) using the Comparison Priority Slider
+      const actionable = strategies.slice(1);
+      const minPmt = Math.min(...actionable.map((s) => s.monthlyPayment));
+      const maxPmt = Math.max(...actionable.map((s) => s.monthlyPayment));
+      const minInt = Math.min(...actionable.map((s) => s.totalInterest));
+      const maxInt = Math.max(...actionable.map((s) => s.totalInterest));
+
+      const wInterest = state.priorityWeight / 100; // 0 to 1
+      const wCashFlow = 1 - wInterest;
+
+      let winner = actionable[0];
+      let bestScore = Infinity;
+
+      for (let s of actionable) {
+        // Normalize both metrics between 0 (best) and 1 (worst)
+        const normPmt = maxPmt > minPmt ? (s.monthlyPayment - minPmt) / (maxPmt - minPmt) : 0;
+        const normInt = maxInt > minInt ? (s.totalInterest - minInt) / (maxInt - minInt) : 0;
+        const compositeScore = wCashFlow * normPmt + wInterest * normInt;
+        if (compositeScore < bestScore) {
+          bestScore = compositeScore;
+          winner = s;
+        }
+      }
+
+      // Update Priority Slider Readouts
+      const priorityLabelEl = document.getElementById('val-priority');
+      const criteriaLabelEl = document.getElementById('winner-criteria-label');
+      if (state.priorityWeight <= 20) {
+        priorityLabelEl.textContent = `Max Monthly Relief (${100 - state.priorityWeight}% Cash Flow)`;
+        criteriaLabelEl.textContent = 'Scoring: Lowest Monthly House Bill';
+      } else if (state.priorityWeight >= 80) {
+        priorityLabelEl.textContent = `Min Lifetime Cost (${state.priorityWeight}% Interest Saved)`;
+        criteriaLabelEl.textContent = 'Scoring: Lowest Total Interest Paid';
+      } else {
+        priorityLabelEl.textContent = `Balanced (${100 - state.priorityWeight}% Cash Flow / ${state.priorityWeight}% Cost)`;
+        criteriaLabelEl.textContent = 'Scoring: Balanced Cash Flow + Total Interest';
+      }
+
+      // Update Slider Readouts
+      document.getElementById('val-apr').textContent = `${state.consolApr.toFixed(1)}%`;
+      document.getElementById('badge-weighted-apr').textContent =
+        customConsolFeePct !== 0
+          ? `Eff: ${effectiveConsolApr.toFixed(1)}% w/ custom fee vs ${weightedApr.toFixed(1)}% avg`
+          : `vs. ${weightedApr.toFixed(1)}% current avg`;
+
+      const extraSign = state.extraMonthly >= 0 ? '+' : '-';
+      document.getElementById('val-extra').textContent = `${extraSign}${fmtCurrency(Math.abs(state.extraMonthly))} / mo`;
+      document.getElementById('badge-total-budget').textContent = `Avalanche Budget: ${fmtCurrency(Math.max(0, rawMinSum + effectiveExtraMonthly))}/mo`;
+
+      document.getElementById('val-lump').textContent = fmtCurrency(state.lumpSum);
+      document.getElementById('badge-lump-impact').textContent =
+        effectiveLumpSum >= 450
+          ? `Total Lump Sum: ${fmtCurrency(effectiveLumpSum)} (Covers urgent items)`
+          : 'Tip: At least $450 clears expiring promo + past due';
+
+      // Update Top KPI Strip (using Smart Consolidation as primary monthly payment benchmark)
+      const activeMonthlyDebt = smartConsol.firstMonthPayment;
+      const freeHouseCash = effectiveNetIncome - state.fixedExpenses - activeMonthlyDebt;
+      const dtiRatio = effectiveNetIncome > 0 ? (activeMonthlyDebt / effectiveNetIncome) * 100 : 0;
+
+      document.getElementById('kpi-total-balance').textContent = fmtCurrency(activeBalanceAfterLump);
+      document.getElementById('kpi-util-badge').textContent = `${utilizationPct.toFixed(1)}% Util`;
+      document.getElementById('kpi-balance-sub').textContent = `After ${fmtCurrency(effectiveLumpSum)} lump sum (from ${fmtCurrencyExact(rawTotalBalance)})`;
+
+      document.getElementById('kpi-monthly-payment').textContent = fmtCurrency(activeMonthlyDebt);
+      const pmtDiff = activeMonthlyDebt - rawMinSum;
+      const pmtDiffBadge = document.getElementById('kpi-payment-delta');
+      if (pmtDiff <= 0) {
+        pmtDiffBadge.textContent = `${fmtCurrency(Math.abs(pmtDiff))}/mo lower than mins`;
+        pmtDiffBadge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700';
+      } else {
+        pmtDiffBadge.textContent = `+${fmtCurrency(pmtDiff)}/mo vs mins`;
+        pmtDiffBadge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700';
+      }
+      document.getElementById('kpi-payment-sub').textContent = `Current statement minimums: ${fmtCurrencyExact(rawMinSum)}/mo`;
+
+      const freeCashEl = document.getElementById('kpi-free-cash');
+      freeCashEl.textContent = fmtCurrency(freeHouseCash);
+      freeCashEl.className =
+        freeHouseCash >= 0
+          ? 'text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600'
+          : 'text-2xl sm:text-3xl font-bold tracking-tight text-rose-600';
+      document.getElementById('kpi-dti-badge').textContent = `${dtiRatio.toFixed(1)}% DTI`;
+      document.getElementById('kpi-cash-sub').textContent = `${fmtCurrency(effectiveNetIncome)} net - ${fmtCurrency(state.fixedExpenses)} house bills`;
+
+      // Winner KPI Card
+      const interestSavedVsMin = Math.max(0, baselineMin.totalInterest - winner.totalInterest);
+      document.getElementById('kpi-winner-tag').textContent = winner.name.replace(/^\d+\.\s*/, '');
+      document.getElementById('kpi-total-saved').textContent = fmtCurrency(interestSavedVsMin);
+      document.getElementById('kpi-winner-sub').textContent = `Paid off in ${winner.months} mos (${(winner.months / 12).toFixed(1)} yrs) vs ${(baselineMin.months / 12).toFixed(1)} yrs`;
+
+      // Update House Budget Stacked Bar & Breakdown
+      const safeIncome = Math.max(1, effectiveNetIncome);
+      const fixedPct = Math.min(100, (state.fixedExpenses / safeIncome) * 100);
+      const debtPct = Math.min(100 - fixedPct, (activeMonthlyDebt / safeIncome) * 100);
+      const freePct = Math.max(0, 100 - fixedPct - debtPct);
+
+      document.getElementById('budget-total-label').textContent =
+        customMonthlyIncome !== 0
+          ? `${fmtCurrency(effectiveNetIncome)} Eff. Income`
+          : `${fmtCurrency(effectiveNetIncome)} Net Income`;
+      document.getElementById('bar-fixed').style.width = `${fixedPct}%`;
+      document.getElementById('bar-debt').style.width = `${debtPct}%`;
+      document.getElementById('bar-free').style.width = `${freePct}%`;
+
+      document.getElementById('leg-fixed').textContent = fmtCurrency(state.fixedExpenses);
+      document.getElementById('leg-debt').textContent = fmtCurrency(activeMonthlyDebt);
+      document.getElementById('leg-free').textContent = fmtCurrency(freeHouseCash);
+
+      const healthPill = document.getElementById('budget-health-pill');
+      if (freeHouseCash < 0) {
+        healthPill.textContent = 'DEFICIT WARNING';
+        healthPill.className = 'px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-rose-50 text-rose-700 border border-rose-200';
+      } else if (freeHouseCash < 1000) {
+        healthPill.textContent = 'TIGHT BUFFER';
+        healthPill.className = 'px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-amber-50 text-amber-800 border border-amber-200';
+      } else {
+        healthPill.textContent = 'HEALTHY MARGIN';
+        healthPill.className = 'px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60';
+      }
+
+      document.getElementById('mini-consol-pmt').textContent = `${fmtCurrency(smartConsol.firstMonthPayment)} / mo`;
+      document.getElementById('mini-full-pmt').textContent = `${fmtCurrency(fullConsol.firstMonthPayment)} / mo`;
+
+      const miniMinsLabel = document.getElementById('mini-mins-label');
+      if (miniMinsLabel) miniMinsLabel.textContent = `Current Minimums (${cards.length} Account${cards.length === 1 ? '' : 's'})`;
+      const miniMinsPmt = document.getElementById('mini-mins-pmt');
+      if (miniMinsPmt) miniMinsPmt.textContent = `${fmtCurrency(rawMinSum)} / mo`;
+      const miniFullLabel = document.getElementById('mini-full-label');
+      if (miniFullLabel) miniFullLabel.textContent = `Full Consolidation (${cards.length} Account${cards.length === 1 ? '' : 's'})`;
+      const stratSub = document.getElementById('strategy-section-sub');
+      if (stratSub) {
+        stratSub.textContent = `How all 4 payoff paths compare for your ${fmtCurrencyExact(rawTotalBalance)} total balance across ${cards.length} account${cards.length === 1 ? '' : 's'}.`;
+      }
+
+      const freedCash = rawMinSum - smartConsol.firstMonthPayment;
+      const freedEl = document.getElementById('mini-freed-cash');
+      if (freedCash >= 0) {
+        freedEl.textContent = `+${fmtCurrency(freedCash)} / mo`;
+        freedEl.className = 'font-mono font-bold text-emerald-600 text-sm';
+      } else {
+        freedEl.textContent = `-${fmtCurrency(Math.abs(freedCash))} / mo`;
+        freedEl.className = 'font-mono font-bold text-amber-600 text-sm';
+      }
+
+      // Render Side-by-Side Strategy Cards
+      renderStrategyCards(strategies, winner.id, rawMinSum);
+
+      // Render How to Make the Best Selection Guidance
+      renderSelectionGuidance(strategies, winner, rawMinSum, baselineMin);
+
+      // Render Payoff Trajectory Chart
+      renderTrajectoryChart(strategies);
+
+      // Update Table Header & Footer dynamically with active card count
+      const countText = `${cards.length} Account${cards.length === 1 ? '' : 's'}`;
+      const headerBadge = document.getElementById('header-card-count-badge');
+      if (headerBadge) headerBadge.textContent = `${countText} • Unlimited Files`;
+      const tableHeading = document.getElementById('cards-table-heading');
+      if (tableHeading) tableHeading.textContent = `Your ${countText}`;
+      const footCountLabel = document.getElementById('foot-count-label');
+      if (footCountLabel) footCountLabel.textContent = `TOTAL (${countText.toUpperCase()})`;
+
+      document.getElementById('foot-balance').textContent = fmtCurrencyExact(rawTotalBalance);
+      document.getElementById('foot-limit').textContent = fmtCurrencyExact(totalLimit);
+      document.getElementById('foot-util').textContent = `${((rawTotalBalance / Math.max(1, totalLimit)) * 100).toFixed(1)}%`;
+      document.getElementById('foot-apr').textContent = `${weightedApr.toFixed(2)}%`;
+      document.getElementById('foot-min').textContent = fmtCurrencyExact(rawMinSum);
+    }
+
+    function renderStrategyCards(strategies, winnerId, rawMinSum) {
+      const grid = document.getElementById('strategy-grid');
+      grid.innerHTML = strategies
+        .map((s) => {
+          const isWinner = s.id === winnerId;
+          const monthlyDelta = s.monthlyPayment - rawMinSum;
+          const deltaText =
+            monthlyDelta <= 0
+              ? `${fmtCurrency(Math.abs(monthlyDelta))}/mo below minimums`
+              : `+${fmtCurrency(monthlyDelta)}/mo above minimums`;
+          const deltaColor = monthlyDelta <= 0 ? 'text-emerald-600' : 'text-amber-700';
+
+          return `
+            <article class="bg-white rounded-xl border ${
+              isWinner ? 'border-brand-900 ring-2 ring-brand-900/15 shadow-sm' : 'border-slate-200/90 shadow-2xs'
+            } p-5 flex flex-col justify-between relative transition">
+              ${
+                isWinner
+                  ? `<div class="absolute -top-2.5 right-4 bg-brand-900 text-white text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded">
+                      Optimal Match
+                    </div>`
+                  : ''
+              }
+              <div class="space-y-3">
+                <div class="flex items-start justify-between gap-2">
+                  <h3 class="text-xs sm:text-sm font-bold text-slate-900 leading-snug">${s.name}</h3>
+                  <span class="shrink-0 text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${s.badgeClass}">
+                    ${s.badge}
+                  </span>
+                </div>
+
+                <div class="pt-1">
+                  <div class="text-2xl font-bold font-mono tracking-tight text-slate-900">
+                    ${fmtCurrency(s.monthlyPayment)}<span class="text-xs font-sans font-medium text-slate-400">/mo</span>
+                  </div>
+                  <div class="text-[11px] font-mono font-semibold ${deltaColor} mt-0.5">${deltaText}</div>
+                </div>
+
+                <p class="text-xs text-slate-600 leading-relaxed">${s.description}</p>
+
+                <div class="grid grid-cols-2 gap-2 pt-2.5 border-t border-slate-100 text-xs">
+                  <div>
+                    <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Horizon</span>
+                    <strong class="font-mono text-slate-800">${s.months}m (${(s.months / 12).toFixed(1)}y)</strong>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Total Interest</span>
+                    <strong class="font-mono text-slate-800">${fmtCurrency(s.totalInterest)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <ul class="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-[11px] text-slate-600">
+                ${s.highlights
+                  .map(
+                    (h) => `
+                  <li class="flex items-start gap-1.5">
+                    <span class="text-brand-600 font-bold">&bull;</span>
+                    <span>${h}</span>
+                  </li>
+                `
+                  )
+                  .join('')}
+              </ul>
+            </article>
+          `;
+        })
+        .join('');
+    }
+
+    function renderSelectionGuidance(strategies, winner, rawMinSum, baselineMin) {
+      const verdictBadge = document.getElementById('selection-verdict-badge');
+      const bodyEl = document.getElementById('selection-guidance-body');
+      const cleanWinnerName = winner.name.replace(/^\d+\.\s*/, '');
+      verdictBadge.textContent = `Top Pick: ${cleanWinnerName}`;
+
+      const monthlyRelief = rawMinSum - winner.monthlyPayment;
+      const interestSaved = Math.max(0, baselineMin.totalInterest - winner.totalInterest);
+
+      // Sort user's current cards by APR descending so guidance works for ANY entered debt
+      const sortedByApr = [...cards].filter((c) => c.balance > 0).sort((a, b) => b.apr - a.apr);
+      const topCard = sortedByApr[0];
+      const lowAprCard = [...cards].find((c) => c.promoKeepBalance > 0 || (c.balance > 0 && c.apr <= 5));
+      const totalMonthlyInterestBurn = cards.reduce((sum, c) => sum + c.balance * (c.apr / 100 / 12), 0);
+
+      // Update top alert banner dynamically for user's own cards
+      const alertContent = document.getElementById('portfolio-alert-content');
+      if (alertContent) {
+        if (sortedByApr.length === 0) {
+          alertContent.innerHTML = `<p class="font-bold text-slate-900">Your card list is empty — add your credit cards below to calculate your debt-free plan.</p>`;
+        } else {
+          const topTwoText = sortedByApr
+            .slice(0, 2)
+            .map((c) => `<strong>${c.name}</strong> (${c.apr.toFixed(2)}% APR)`)
+            .join(' and ');
+          alertContent.innerHTML = `
+            <p class="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Your Debt Snapshot (${sortedByApr.length} Active Card${sortedByApr.length === 1 ? '' : 's'} &bull; ${fmtCurrencyExact(cards.reduce((s, c) => s + c.balance, 0))} Total)</p>
+            <p class="text-slate-600 leading-relaxed">
+              Your cards currently generate roughly <strong class="text-rose-600">${fmtCurrencyExact(totalMonthlyInterestBurn)}/mo</strong> in interest charges. Target ${topTwoText} first to stop the steepest interest drain.
+            </p>
+          `;
+        }
+      }
+
+      const aprAdvice = topCard
+        ? state.consolApr < topCard.apr - 3
+          ? `At <strong>${state.consolApr.toFixed(1)}% APR</strong>, refinancing cuts your top rate on <strong>${topCard.name} (${topCard.apr.toFixed(2)}%)</strong> by ${(topCard.apr - state.consolApr).toFixed(1)} percentage points.${lowAprCard ? ` Keep <strong>${lowAprCard.name}</strong> out of the loan so you don't lose its low rate.` : ''}`
+          : `At <strong>${state.consolApr.toFixed(1)}% APR</strong>, a new loan is close to or higher than your existing rates—use <strong>Debt Avalanche</strong> instead and put extra cash straight onto <strong>${topCard.name}</strong>.`
+        : `Add at least one card balance below to compare refinancing rates against your current APRs.`;
+
+      const lumpAdvice = topCard
+        ? state.lumpSum > 0
+          ? `Applying <strong>${fmtCurrency(state.lumpSum)}</strong> upfront directly reduces <strong>${topCard.name}</strong> (${topCard.apr.toFixed(2)}% APR), saving roughly <strong>${fmtCurrencyExact((Math.min(state.lumpSum, topCard.balance) * topCard.apr) / 100)}/yr</strong> in interest immediately.`
+          : `Even a small one-time payment (tax refund, bonus, or selling unused items) applied to <strong>${topCard.name} (${topCard.apr.toFixed(2)}%)</strong> permanently lowers every future monthly interest charge.`
+        : `Enter your card balances below to see where a lump-sum payment saves the most money.`;
+
+      const cashFlowAdvice =
+        monthlyRelief >= 0
+          ? `<strong>${cleanWinnerName}</strong> lowers your monthly house outflow by <strong>${fmtCurrency(monthlyRelief)}/mo</strong> while saving <strong>${fmtCurrency(interestSaved)}</strong> in lifetime interest vs. paying minimums.`
+          : `<strong>${cleanWinnerName}</strong> uses <strong>+${fmtCurrency(Math.abs(monthlyRelief))}/mo</strong> above current minimums to get you debt-free faster—slide Priority left or pick a 60–72m term if you need a lower monthly bill.`;
+
+      bodyEl.innerHTML = `
+        <div class="bg-slate-50/80 rounded-lg p-4 border border-slate-200/80 space-y-1.5">
+          <div class="font-bold text-slate-900 flex items-center gap-2 text-xs uppercase tracking-wider">
+            <span class="w-5 h-5 rounded bg-brand-900 text-white font-mono text-[10px] flex items-center justify-center font-bold">01</span>
+            Compare Rates Before Moving Debt
+          </div>
+          <p class="text-slate-600 leading-relaxed text-xs">${aprAdvice}</p>
+        </div>
+
+        <div class="bg-slate-50/80 rounded-lg p-4 border border-slate-200/80 space-y-1.5">
+          <div class="font-bold text-slate-900 flex items-center gap-2 text-xs uppercase tracking-wider">
+            <span class="w-5 h-5 rounded bg-amber-600 text-white font-mono text-[10px] flex items-center justify-center font-bold">02</span>
+            Target Highest APR First
+          </div>
+          <p class="text-slate-600 leading-relaxed text-xs">${lumpAdvice}</p>
+        </div>
+
+        <div class="bg-brand-50/60 rounded-lg p-4 border border-brand-100 space-y-1.5">
+          <div class="font-bold text-brand-900 flex items-center gap-2 text-xs uppercase tracking-wider">
+            <span class="w-5 h-5 rounded bg-brand-600 text-white font-mono text-[10px] flex items-center justify-center font-bold">03</span>
+            Why ${cleanWinnerName} Wins
+          </div>
+          <p class="text-slate-700 leading-relaxed text-xs">${cashFlowAdvice}</p>
+        </div>
+      `;
+
+      // Render step-by-step payoff order cards
+      const attackStrip = document.getElementById('attack-order-strip');
+      if (attackStrip) {
+        attackStrip.innerHTML = sortedByApr
+          .map((c, i) => {
+            const moInt = c.balance * (c.apr / 100 / 12);
+            return `
+              <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border ${
+                i === 0 ? 'bg-amber-50/70 border-amber-200' : 'bg-slate-50/70 border-slate-200/80'
+              } text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-5 h-5 rounded font-mono text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                    i === 0 ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-700'
+                  }">#${i + 1}</span>
+                  <span class="font-semibold text-slate-900 truncate">${c.name}</span>
+                </div>
+                <div class="text-right shrink-0 font-mono text-[11px]">
+                  <span class="font-bold text-slate-900">${c.apr.toFixed(1)}%</span>
+                  <span class="text-slate-400">(${fmtCurrency(moInt)}/mo)</span>
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+      }
+    }
+
+    function renderTrajectoryChart(strategies) {
+      const svg = document.getElementById('trajectory-chart');
+      const width = 800;
+      const height = 260;
+      const padLeft = 65;
+      const padRight = 25;
+      const padTop = 20;
+      const padBottom = 35;
+
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+
+      // 84 months (7 years) horizon sampled every 3 months -> 29 points
+      const maxMonths = 84;
+      const maxVal = Math.max(
+        10000,
+        ...strategies.flatMap((s) => s.history.slice(0, 29))
+      );
+
+      const getX = (monthIdx) => padLeft + (Math.min(maxMonths, monthIdx * 3) / maxMonths) * plotW;
+      const getY = (val) => padTop + plotH - (Math.max(0, val) / maxVal) * plotH;
+
+      let gridHtml = '';
+      // Horizontal grid lines (4 steps)
+      for (let i = 0; i <= 4; i++) {
+        const val = (maxVal / 4) * i;
+        const y = getY(val);
+        gridHtml += `
+          <line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="#e2e8f0" stroke-dasharray="4 4" />
+          <text x="${padLeft - 10}" y="${y + 4}" text-anchor="end" font-size="11" fill="#64748b" font-family="Inter, sans-serif">
+            $${Math.round(val / 1000)}k
+          </text>
+        `;
+      }
+
+      // Vertical year markers (Year 0 to Year 7)
+      for (let yr = 0; yr <= 7; yr++) {
+        const x = padLeft + (yr / 7) * plotW;
+        gridHtml += `
+          <line x1="${x}" y1="${padTop}" x2="${x}" y2="${padTop + plotH}" stroke="#f1f5f9" />
+          <text x="${x}" y="${height - 10}" text-anchor="middle" font-size="11" fill="#64748b" font-family="Inter, sans-serif">
+            Yr ${yr}
+          </text>
+        `;
+      }
+
+      const colors = ['#f43f5e', '#f59e0b', '#0a192f', '#0f766e'];
+      let pathsHtml = '';
+
+      strategies.forEach((s, idx) => {
+        const pts = s.history.slice(0, 29);
+        if (pts.length === 0) return;
+        const d = pts
+          .map((val, i) => `${i === 0 ? 'M' : 'L'} ${getX(i).toFixed(1)} ${getY(val).toFixed(1)}`)
+          .join(' ');
+        pathsHtml += `
+          <path d="${d}" fill="none" stroke="${colors[idx]}" stroke-width="${idx === 2 ? 3 : 2}" stroke-linecap="round" stroke-linejoin="round" />
+        `;
+      });
+
+      svg.innerHTML = gridHtml + pathsHtml;
+    }
+
+    function renderCardsTable() {
+      const tbody = document.getElementById('cards-tbody');
+      if (cards.length === 0) {
+        const hasBackup = lastDeletedSnapshot && lastDeletedSnapshot.cards && lastDeletedSnapshot.cards.length > 0;
+        const hasUploads = cachedUploadedBatches.length > 0;
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="py-8 px-4 text-center text-xs text-slate-500 bg-slate-50/40 space-y-3">
+              <div>No credit cards loaded. Upload bank statements above or click <strong>+ Add Card</strong> to enter an account manually.</div>
+              <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
+                ${hasBackup ? `<button type="button" id="inline-restore-btn" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition">&#8634; Restore Cleared Data (${lastDeletedSnapshot.cards.length} cards)</button>` : ''}
+                ${hasUploads ? `<button type="button" id="inline-reload-uploads-btn" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-50 hover:bg-teal-100 text-brand-700 border border-brand-200 transition">Re-load Uploaded Statements (${cachedUploadedBatches.length})</button>` : ''}
+                <button type="button" id="inline-load-sample-btn" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition">Load Sample Profile</button>
+              </div>
+            </td>
+          </tr>
+        `;
+        document.getElementById('inline-restore-btn')?.addEventListener('click', restoreLastSnapshot);
+        document.getElementById('inline-reload-uploads-btn')?.addEventListener('click', () => {
+          cards = JSON.parse(JSON.stringify(cachedUploadedBatches));
+          renderCardsTable();
+          updateDashboard();
+        });
+        document.getElementById('inline-load-sample-btn')?.addEventListener('click', () => {
+          document.getElementById('btn-reset')?.click();
+        });
+        return;
+      }
+      tbody.innerHTML = cards
+        .map((c, idx) => {
+          const util = c.limit > 0 ? ((c.balance / c.limit) * 100).toFixed(1) : '0.0';
+          return `
+            <tr class="hover:bg-slate-50/80 transition">
+              <td class="py-3 px-4 font-semibold text-slate-900">
+                <input
+                  type="text"
+                  value="${c.name}"
+                  data-idx="${idx}"
+                  data-field="name"
+                  class="card-edit bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-600 focus:outline-none w-44 font-semibold text-slate-900"
+                />
+              </td>
+              <td class="py-3 px-4 font-bold text-slate-800">
+                $<input
+                  type="number"
+                  step="10"
+                  min="0"
+                  value="${c.balance.toFixed(2)}"
+                  data-idx="${idx}"
+                  data-field="balance"
+                  class="card-edit bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 w-24 font-bold text-slate-900 focus:border-blue-600 focus:outline-none"
+                />
+              </td>
+              <td class="py-3 px-4 text-slate-600">
+                $<input
+                  type="number"
+                  step="500"
+                  min="0"
+                  value="${c.limit}"
+                  data-idx="${idx}"
+                  data-field="limit"
+                  class="card-edit bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 w-24 font-mono text-slate-800 focus:border-brand-900 focus:outline-none"
+                />
+              </td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  Number(util) > 75
+                    ? 'bg-rose-50 text-rose-700'
+                    : Number(util) > 40
+                    ? 'bg-amber-50 text-amber-700'
+                    : 'bg-emerald-50 text-emerald-700'
+                }">
+                  ${util}%
+                </span>
+              </td>
+              <td class="py-3 px-4">
+                <input
+                  type="number"
+                  step="0.25"
+                  min="0"
+                  max="40"
+                  value="${c.apr.toFixed(2)}"
+                  data-idx="${idx}"
+                  data-field="apr"
+                  class="card-edit bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 w-20 font-semibold text-slate-900 focus:border-blue-600 focus:outline-none"
+                />%
+              </td>
+              <td class="py-3 px-4 font-semibold text-slate-700">
+                $<input
+                  type="number"
+                  step="5"
+                  min="0"
+                  value="${c.minPayment.toFixed(2)}"
+                  data-idx="${idx}"
+                  data-field="minPayment"
+                  class="card-edit bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 w-20 font-semibold text-slate-900 focus:border-blue-600 focus:outline-none"
+                />
+              </td>
+              <td class="py-3 px-4 text-xs text-slate-500 max-w-xs">
+                <input
+                  type="text"
+                  value="${c.note}"
+                  data-idx="${idx}"
+                  data-field="note"
+                  placeholder="Add note..."
+                  class="card-edit bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-900 focus:outline-none w-full text-xs text-slate-600"
+                />
+              </td>
+              <td class="py-3 px-4 text-right">
+                <button type="button" data-remove="${idx}" class="remove-card-btn text-xs font-semibold text-rose-600 hover:text-rose-800 px-2.5 py-1 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-200 transition">
+                  Delete
+                </button>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      // Attach listeners for inline edits
+      document.querySelectorAll('.card-edit').forEach((input) => {
+        input.addEventListener('change', (e) => {
+          const idx = Number(e.target.dataset.idx);
+          const field = e.target.dataset.field;
+          if (field === 'name' || field === 'note') {
+            cards[idx][field] = e.target.value;
+          } else {
+            cards[idx][field] = Math.max(0, parseFloat(e.target.value) || 0);
+          }
+          renderCardsTable();
+          updateDashboard();
+        });
+      });
+
+      document.querySelectorAll('.remove-card-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const idx = Number(e.target.dataset.remove);
+          saveUndoSnapshot(`Deleted ${cards[idx]?.name || 'card'}`);
+          cards.splice(idx, 1);
+          renderCardsTable();
+          updateDashboard();
+        });
+      });
+    }
+
+    function renderCustomVariables() {
+      const container = document.getElementById('custom-variables-list');
+      if (customVars.length === 0) {
+        container.innerHTML = `
+          <div class="text-xs text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-xl p-4 text-center">
+            No custom variables active. Click <strong>+ Add Custom Variable</strong> above to create your own slider.
+          </div>
+        `;
+        return;
+      }
+
+      const typeConfigs = {
+        monthly_income: {
+          label: 'House Cash Flow (+/- $/mo)',
+          min: -1500,
+          max: 3000,
+          step: 50,
+          format: (v) => `${v >= 0 ? '+' : '-'}${fmtCurrency(Math.abs(v))}/mo`
+        },
+        monthly_debt: {
+          label: 'Extra Debt Paydown (+/- $/mo)',
+          min: -500,
+          max: 2000,
+          step: 25,
+          format: (v) => `${v >= 0 ? '+' : '-'}${fmtCurrency(Math.abs(v))}/mo`
+        },
+        lump_sum: {
+          label: 'One-Time Principal Paydown ($)',
+          min: 0,
+          max: 20000,
+          step: 250,
+          format: (v) => fmtCurrency(v)
+        },
+        consol_fee_pct: {
+          label: 'Loan Origination / Transfer Fee (%)',
+          min: 0,
+          max: 8,
+          step: 0.5,
+          format: (v) => `${v.toFixed(1)}%`
+        }
+      };
+
+      container.innerHTML = customVars
+        .map((cv, idx) => {
+          const cfg = typeConfigs[cv.type] || typeConfigs.monthly_income;
+          return `
+            <div class="bg-slate-50/90 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2 flex-1 min-w-[180px]">
+                  <span class="w-5 h-5 rounded-md bg-slate-800 text-white text-[11px] flex items-center justify-center font-bold shrink-0">
+                    ${idx + 5}
+                  </span>
+                  <input
+                    type="text"
+                    value="${cv.name}"
+                    data-idx="${idx}"
+                    aria-label="Variable name"
+                    placeholder="Rename variable..."
+                    class="cv-name-input text-sm font-bold text-slate-900 bg-white border border-slate-200 hover:border-slate-300 focus:border-blue-600 focus:outline-none rounded-lg px-2.5 py-1 w-full max-w-[220px]"
+                  />
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <select
+                    data-idx="${idx}"
+                    aria-label="Variable effect type"
+                    class="cv-type-select text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:border-blue-600 focus:outline-none"
+                  >
+                    <option value="monthly_income" ${cv.type === 'monthly_income' ? 'selected' : ''}>House Cash Flow ($/mo)</option>
+                    <option value="monthly_debt" ${cv.type === 'monthly_debt' ? 'selected' : ''}>Extra Debt Payment ($/mo)</option>
+                    <option value="lump_sum" ${cv.type === 'lump_sum' ? 'selected' : ''}>One-Time Lump Sum ($)</option>
+                    <option value="consol_fee_pct" ${cv.type === 'consol_fee_pct' ? 'selected' : ''}>Origination / BT Fee (%)</option>
+                  </select>
+
+                  <span id="cv-val-${idx}" class="text-xs sm:text-sm font-extrabold text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 min-w-[82px] text-center">
+                    ${cfg.format(cv.value)}
+                  </span>
+
+                  <button
+                    type="button"
+                    data-idx="${idx}"
+                    title="Remove variable"
+                    class="cv-remove-btn text-xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2 py-1 rounded-lg transition"
+                  >
+                    &times;
+                  </button>
+                </div>
+              </div>
+
+              <input
+                type="range"
+                data-idx="${idx}"
+                min="${cfg.min}"
+                max="${cfg.max}"
+                step="${cfg.step}"
+                value="${cv.value}"
+                class="cv-slider w-full"
+              />
+            </div>
+          `;
+        })
+        .join('');
+
+      // Bind events for custom variable controls
+      document.querySelectorAll('.cv-name-input').forEach((input) => {
+        input.addEventListener('input', (e) => {
+          const idx = Number(e.target.dataset.idx);
+          customVars[idx].name = e.target.value;
+        });
+      });
+
+      document.querySelectorAll('.cv-type-select').forEach((select) => {
+        select.addEventListener('change', (e) => {
+          const idx = Number(e.target.dataset.idx);
+          customVars[idx].type = e.target.value;
+          customVars[idx].value = 0; // Reset slider cleanly on type change
+          renderCustomVariables();
+          updateDashboard();
+        });
+      });
+
+      document.querySelectorAll('.cv-slider').forEach((slider) => {
+        slider.addEventListener('input', (e) => {
+          const idx = Number(e.target.dataset.idx);
+          const val = parseFloat(e.target.value);
+          customVars[idx].value = val;
+          const cfg = typeConfigs[customVars[idx].type] || typeConfigs.monthly_income;
+          const valBadge = document.getElementById(`cv-val-${idx}`);
+          if (valBadge) valBadge.textContent = cfg.format(val);
+          updateDashboard();
+        });
+      });
+
+      document.querySelectorAll('.cv-remove-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const idx = Number(e.target.dataset.idx);
+          customVars.splice(idx, 1);
+          renderCustomVariables();
+          updateDashboard();
+        });
+      });
+    }
+
+    // =========================================================================
+    // 4. EVENT LISTENERS
+    // =========================================================================
+
+    /**
+     * Reads a PDF file via PDF.js and returns extracted text from all pages
+     */
+    async function extractTextFromPdf(file) {
+      if (!window.pdfjsLib) return '';
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const content = await page.getTextContent();
+          const pageText = content.items.map((item) => item.str).join(' ');
+          fullText += `\n--- Page ${pageNum} ---\n${pageText}`;
+        }
+        return fullText;
+      } catch (e) {
+        return '';
+      }
+    }
+
+    /**
+     * Converts any File (PDF, image, etc.) into base64 inlineData
+     */
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result || '';
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /**
+     * Deterministic client-side fallback parser for CSVs or extracted PDF statement text
+     * if the LLM endpoint is unavailable or blocked.
+     */
+    function fallbackParseStatementText(rawText, fileName) {
+      const cleanName = fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+      if (!rawText || rawText.trim().length < 5) return [];
+
+      // 1) Check if CSV format with headers
+      const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      if (lines.length >= 2 && lines[0].includes(',')) {
+        const headers = lines[0].toLowerCase().split(',').map((h) => h.trim());
+        const balIdx = headers.findIndex((h) => h.includes('balance') || h.includes('owed') || h.includes('amount'));
+        if (balIdx !== -1) {
+          const nameIdx = headers.findIndex((h) => h.includes('card') || h.includes('name') || h.includes('issuer') || h.includes('account'));
+          const limIdx = headers.findIndex((h) => h.includes('limit') || h.includes('line'));
+          const aprIdx = headers.findIndex((h) => h.includes('apr') || h.includes('rate') || h.includes('interest'));
+          const minIdx = headers.findIndex((h) => h.includes('min') || h.includes('payment') || h.includes('due'));
+
+          const parsedRows = [];
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(',').map((c) => c.replace(/[$%",]/g, '').trim());
+            const bal = parseFloat(cols[balIdx]) || 0;
+            if (bal > 0) {
+              parsedRows.push({
+                name: (nameIdx !== -1 && cols[nameIdx]) ? cols[nameIdx] : `${cleanName} #${i}`,
+                balance: bal,
+                limit: limIdx !== -1 ? (parseFloat(cols[limIdx]) || Math.round(bal * 1.8)) : Math.round(bal * 1.8),
+                apr: aprIdx !== -1 ? (parseFloat(cols[aprIdx]) || 22.99) : 22.99,
+                minPayment: minIdx !== -1 ? (parseFloat(cols[minIdx]) || Math.max(35, Math.round(bal * 0.03))) : Math.max(35, Math.round(bal * 0.03)),
+                promoKeepBalance: 0,
+                promoKeepApr: 0,
+                promoKeepPayment: 0,
+                note: `Imported from ${fileName}`
+              });
+            }
+          }
+          if (parsedRows.length > 0) return parsedRows;
+        }
+      }
+
+      // 2) Regex extraction for bank PDF statement text
+      const parseDollar = (regex) => {
+        const m = rawText.match(regex);
+        return m ? parseFloat(m[1].replace(/,/g, '')) : 0;
+      };
+      const balance =
+        parseDollar(/New\s+(?:Statement\s+)?Balance[:\s]*\$?\s*([\d,]+\.\d{2})/i) ||
+        parseDollar(/Total\s+Balance[:\s]*\$?\s*([\d,]+\.\d{2})/i) ||
+        parseDollar(/Balance[:\s]*\$?\s*([\d,]+\.\d{2})/i);
+
+      const limit =
+        parseDollar(/(?:Total\s+)?Credit\s+(?:Limit|Line|Access\s+Line)[:\s]*\$?\s*([\d,]+(?:\.\d{2})?)/i);
+
+      const minPayment =
+        parseDollar(/(?:Total\s+)?Minimum\s+Payment(?:\s+Due)?[:\s]*\$?\s*([\d,]+\.\d{2})/i);
+
+      const aprMatches = [...rawText.matchAll(/(\d{1,2}\.\d{2})\s*%/g)]
+        .map((m) => parseFloat(m[1]))
+        .filter((n) => n > 0 && n < 40);
+      const apr = aprMatches.length > 0 ? Math.max(...aprMatches) : 21.99;
+
+      // Detect known issuers in text
+      let issuer = cleanName;
+      const issuers = ['Navy Federal', 'Chase', 'American Express', 'Amex', 'Discover', 'Capital One', 'Lowe\'s', 'Synchrony', 'USAA', 'Citi', 'Bank of America', 'Wells Fargo'];
+      for (const brand of issuers) {
+        if (new RegExp(brand, 'i').test(rawText)) {
+          issuer = brand;
+          break;
+        }
+      }
+
+      if (balance > 0) {
+        return [{
+          name: issuer,
+          balance,
+          limit: limit || Math.round(balance * 1.5),
+          apr,
+          minPayment: minPayment || Math.max(35, Math.round(balance * 0.025)),
+          promoKeepBalance: 0,
+          promoKeepApr: 0,
+          promoKeepPayment: 0,
+          note: `Extracted from ${fileName}`
+        }];
+      }
+      return [];
+    }
+
+    /**
+     * Calls Gemini API (gemini-3-flash-preview) with Structured JSON Output to normalize
+     * any bank statement (PDF text, PDF binary, CSV/TXT, or screenshot image) into card schema objects.
+     */
+    async function parseStatementWithGemini(file) {
+      const apiKey = '';
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      let extractedTextCache = '';
+      const parts = [
+        {
+          text: `Extract credit card or loan account summary figures from this financial statement (${file.name}).
+Return a JSON array of accounts found in the document.
+Rules:
+- name: Clean issuer/card name (e.g., "Chase Sapphire", "Discover it", "Navy Federal Visa", "Lowe's Synchrony"). Do NOT include full account numbers or personal names/addresses.
+- balance: Current New Balance / Total Balance owed as a number.
+- limit: Total Credit Limit / Credit Line as a number (use 0 if not shown).
+- apr: Weighted or primary Purchase Annual Percentage Rate (APR) as a percentage number (e.g. 24.99). If multiple tiers exist, compute the balance-weighted average APR across all balances on the statement.
+- minPayment: Total Minimum Payment Due as a number.
+- promoKeepBalance: If the statement shows a low-rate promotional balance (under 6% APR, e.g. 0% or 1.99% Fixed Pay) that should be kept separate from high-rate consolidation, put that promotional dollar balance here; otherwise 0.
+- promoKeepApr: The APR of that low-rate promotional balance (e.g. 1.99); otherwise 0.
+- promoKeepPayment: Monthly payment allocated to that promotional balance if listed; otherwise 0.
+- note: Brief 1-line summary of key statement details (e.g. "Includes cash advance @ 28.74%" or "0% promo expires 12/2026").`
+        }
+      ];
+
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        extractedTextCache = await extractTextFromPdf(file);
+        if (extractedTextCache && extractedTextCache.trim().length > 40) {
+          parts.push({ text: `STATEMENT TEXT:\n${extractedTextCache.slice(0, 45000)}` });
+        } else {
+          // Scanned/image-only PDF fallback: send native PDF inlineData directly to Gemini
+          const base64Pdf = await fileToBase64(file);
+          parts.push({
+            inlineData: {
+              mimeType: 'application/pdf',
+              data: base64Pdf
+            }
+          });
+        }
+      } else if (file.type.startsWith('image/')) {
+        const base64Data = await fileToBase64(file);
+        parts.push({
+          inlineData: {
+            mimeType: file.type,
+            data: base64Data
+          }
+        });
+      } else {
+        extractedTextCache = await file.text();
+        parts.push({ text: `STATEMENT EXPORT:\n${extractedTextCache.slice(0, 45000)}` });
+      }
+
+      const payload = {
+        contents: [{ role: 'user', parts }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                name: { type: 'STRING' },
+                balance: { type: 'NUMBER' },
+                limit: { type: 'NUMBER' },
+                apr: { type: 'NUMBER' },
+                minPayment: { type: 'NUMBER' },
+                promoKeepBalance: { type: 'NUMBER' },
+                promoKeepApr: { type: 'NUMBER' },
+                promoKeepPayment: { type: 'NUMBER' },
+                note: { type: 'STRING' }
+              },
+              required: ['name', 'balance', 'limit', 'apr', 'minPayment', 'promoKeepBalance', 'promoKeepApr', 'promoKeepPayment', 'note']
+            }
+          }
+        }
+      };
+
+      // Exponential backoff retry wrapper with local parser fallback
+      let attempt = 0;
+      const delays = [1000, 2000];
+      while (true) {
+        try {
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const result = await response.json();
+          const rawJson = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const parsed = rawJson ? JSON.parse(rawJson) : [];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+          return fallbackParseStatementText(extractedTextCache, file.name);
+        } catch (err) {
+          if (attempt >= delays.length) {
+            return fallbackParseStatementText(extractedTextCache, file.name);
+          }
+          await new Promise((res) => setTimeout(res, delays[attempt]));
+          attempt++;
+        }
+      }
+    }
+
+    /**
+     * Handles batch upload of multiple bank statement files and populates the simulator
+     */
+    async function handleStatementFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (files.length === 0) return;
+
+      const statusEl = document.getElementById('import-status-text');
+      const pillsBarEl = document.getElementById('uploaded-files-bar');
+      const pillsEl = document.getElementById('uploaded-files-pills');
+      const dropzoneEl = document.getElementById('statement-dropzone');
+      const replaceExisting = document.getElementById('chk-replace-existing').checked;
+
+      dropzoneEl.classList.add('border-brand-600', 'bg-brand-50/30');
+      pillsBarEl.classList.remove('hidden');
+      const batchPrefix = `batch-${Date.now()}`;
+      const batchPillsHtml = files
+        .map(
+          (f, idx) =>
+            `<span id="file-pill-${batchPrefix}-${idx}" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono bg-slate-100 text-slate-700 border border-slate-200">
+              <span>&#9203;</span> ${f.name}
+            </span>`
+        )
+        .join('');
+
+      if (replaceExisting) {
+        pillsEl.innerHTML = batchPillsHtml;
+      } else {
+        pillsEl.insertAdjacentHTML('beforeend', batchPillsHtml);
+      }
+
+      statusEl.innerHTML = `<span class="font-semibold text-brand-900">Reading ${files.length} statement file${files.length > 1 ? 's' : ''}...</span> Extracting balances, APRs, limits, and minimum payments (no file cap).`;
+
+      try {
+        const extractedCards = [];
+        for (let i = 0; i < files.length; i++) {
+          const pill = document.getElementById(`file-pill-${batchPrefix}-${i}`);
+          statusEl.innerHTML = `<span class="font-semibold text-brand-900">Parsing file ${i + 1} of ${files.length}:</span> ${files[i].name}...`;
+          const accounts = await parseStatementWithGemini(files[i]);
+          let fileCardCount = 0;
+
+          for (const acc of accounts) {
+            if ((acc.balance || 0) > 0 || (acc.limit || 0) > 0) {
+              fileCardCount++;
+              extractedCards.push({
+                id: `imported-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                name: acc.name || files[i].name.replace(/\.[^.]+$/, ''),
+                balance: Math.max(0, Number(acc.balance) || 0),
+                limit: Math.max(0, Number(acc.limit) || 0),
+                apr: Math.max(0, Number(acc.apr) || 0),
+                minPayment: Math.max(0, Number(acc.minPayment) || 0),
+                promoKeepBalance: Math.max(0, Number(acc.promoKeepBalance) || 0),
+                promoKeepApr: Math.max(0, Number(acc.promoKeepApr) || 0),
+                promoKeepPayment: Math.max(0, Number(acc.promoKeepPayment) || 0),
+                note: acc.note || `Imported from ${files[i].name}`
+              });
+            }
+          }
+
+          if (pill) {
+            if (fileCardCount > 0) {
+              pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200';
+              pill.innerHTML = `<span>&#10003;</span> ${files[i].name} (${fileCardCount})`;
+            } else {
+              pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono bg-amber-50 text-amber-800 border border-amber-200';
+              pill.innerHTML = `<span>!</span> ${files[i].name} (0 found)`;
+            }
+          }
+        }
+
+        if (extractedCards.length === 0) {
+          statusEl.innerHTML = `<span class="font-semibold text-amber-700">No account balances detected in uploaded files.</span> Try a text-based PDF statement, CSV export, or clear screenshot.`;
+        } else {
+          saveUndoSnapshot('Before statement import');
+          cachedUploadedBatches = replaceExisting
+            ? JSON.parse(JSON.stringify(extractedCards))
+            : [...cachedUploadedBatches, ...JSON.parse(JSON.stringify(extractedCards))];
+          cards = replaceExisting ? extractedCards : [...cards, ...extractedCards];
+          state.lumpSum = 0;
+          document.getElementById('slider-lump').value = 0;
+          renderCardsTable();
+          updateDashboard();
+          statusEl.innerHTML = `<span class="font-semibold text-emerald-700">Loaded ${extractedCards.length} account${extractedCards.length > 1 ? 's' : ''} onto your dashboard!</span> Scroll down to review or fine-tune any figure.`;
+        }
+      } catch (err) {
+        statusEl.innerHTML = `<span class="font-semibold text-rose-600">Could not parse one or more files.</span> Check that the file isn't password-locked or enter figures manually in the table below.`;
+      } finally {
+        dropzoneEl.classList.remove('border-brand-600', 'bg-brand-50/30');
+        // Reset file input value so the user can immediately re-select the exact same file(s) anytime
+        const inputEl = document.getElementById('statement-file-input');
+        if (inputEl) inputEl.value = '';
+      }
+    }
+
+    function bindEvents() {
+      const fileInput = document.getElementById('statement-file-input');
+      const dropzone = document.getElementById('statement-dropzone');
+      const btnBrowse = document.getElementById('btn-browse-files');
+
+      if (btnBrowse && fileInput) {
+        btnBrowse.addEventListener('click', () => fileInput.click());
+      }
+
+      if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+          handleStatementFiles(e.target.files);
+        });
+      }
+
+      if (dropzone) {
+        ['dragenter', 'dragover'].forEach((evt) => {
+          dropzone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            dropzone.classList.add('border-brand-600', 'bg-brand-50/30');
+          });
+        });
+        ['dragleave', 'drop'].forEach((evt) => {
+          dropzone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('border-brand-600', 'bg-brand-50/30');
+          });
+        });
+        dropzone.addEventListener('drop', (e) => {
+          if (e.dataTransfer && e.dataTransfer.files) {
+            handleStatementFiles(e.dataTransfer.files);
+          }
+        });
+      }
+
+      // Wire primary levers, loan term buttons, household budget inputs, and Add Card button
+      const sliderApr = document.getElementById('slider-apr');
+      if (sliderApr) {
+        sliderApr.addEventListener('input', (e) => {
+          state.consolApr = parseFloat(e.target.value);
+          updateDashboard();
+        });
+      }
+
+      const sliderExtra = document.getElementById('slider-extra');
+      if (sliderExtra) {
+        sliderExtra.addEventListener('input', (e) => {
+          state.extraMonthly = parseFloat(e.target.value);
+          updateDashboard();
+        });
+      }
+
+      const sliderLump = document.getElementById('slider-lump');
+      if (sliderLump) {
+        sliderLump.addEventListener('input', (e) => {
+          state.lumpSum = parseFloat(e.target.value);
+          updateDashboard();
+        });
+      }
+
+      const sliderPriority = document.getElementById('slider-priority');
+      if (sliderPriority) {
+        sliderPriority.addEventListener('input', (e) => {
+          state.priorityWeight = parseInt(e.target.value, 10);
+          updateDashboard();
+        });
+      }
+
+      const inputIncome = document.getElementById('input-income');
+      if (inputIncome) {
+        inputIncome.addEventListener('input', (e) => {
+          state.netIncome = Math.max(0, parseFloat(e.target.value) || 0);
+          updateDashboard();
+        });
+      }
+
+      const inputFixed = document.getElementById('input-fixed');
+      if (inputFixed) {
+        inputFixed.addEventListener('input', (e) => {
+          state.fixedExpenses = Math.max(0, parseFloat(e.target.value) || 0);
+          updateDashboard();
+        });
+      }
+
+      document.querySelectorAll('.term-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          state.loanTerm = Number(e.currentTarget.dataset.term);
+          document.querySelectorAll('.term-btn').forEach((b) => {
+            b.className =
+              Number(b.dataset.term) === state.loanTerm
+                ? 'term-btn px-3 py-1 text-xs font-mono font-semibold rounded bg-white text-brand-900 shadow-2xs transition'
+                : 'term-btn px-3 py-1 text-xs font-mono font-semibold rounded text-slate-600 hover:text-slate-900 transition';
+          });
+          updateDashboard();
+        });
+      });
+
+      document.getElementById('btn-add-card')?.addEventListener('click', () => {
+        cards.push({
+          id: `custom-card-${Date.now()}`,
+          name: `Card #${cards.length + 1}`,
+          balance: 1500.00,
+          limit: 5000.00,
+          apr: 21.99,
+          minPayment: 45.00,
+          promoKeepBalance: 0,
+          promoKeepApr: 0,
+          promoKeepPayment: 0,
+          note: 'Click any value to edit'
+        });
+        renderCardsTable();
+        updateDashboard();
+      });
+
+      document.getElementById('btn-reload-uploads')?.addEventListener('click', () => {
+        if (cachedUploadedBatches.length === 0) return;
+        cards = JSON.parse(JSON.stringify(cachedUploadedBatches));
+        renderCardsTable();
+        updateDashboard();
+        const statusEl = document.getElementById('import-status-text');
+        if (statusEl) {
+          statusEl.innerHTML = `<span class="font-semibold text-emerald-700">Re-loaded ${cards.length} account${cards.length === 1 ? '' : 's'} from your uploaded statements.</span>`;
+        }
+      });
+
+      document.getElementById('btn-clear-uploads')?.addEventListener('click', () => {
+        cachedUploadedBatches = [];
+        const pillsBar = document.getElementById('uploaded-files-bar');
+        const pillsEl = document.getElementById('uploaded-files-pills');
+        const statusEl = document.getElementById('import-status-text');
+        const inputEl = document.getElementById('statement-file-input');
+        if (inputEl) inputEl.value = '';
+        if (pillsEl) pillsEl.innerHTML = '';
+        if (pillsBar) pillsBar.classList.add('hidden');
+        if (statusEl) {
+          statusEl.textContent =
+            'Drop one or multiple statements (Chase, Amex, Discover, Navy Federal, Synchrony, Capital One, etc.) to automatically extract balances, APRs, limits, and minimum payments.';
+        }
+      });
+
+      const wipeAllCards = () => {
+        saveUndoSnapshot('Cleared all cards');
+        cards = [];
+        state.lumpSum = 0;
+        state.extraMonthly = 0;
+        const sliderLumpEl = document.getElementById('slider-lump');
+        const sliderExtraEl = document.getElementById('slider-extra');
+        if (sliderLumpEl) sliderLumpEl.value = 0;
+        if (sliderExtraEl) sliderExtraEl.value = 0;
+        renderCardsTable();
+        updateDashboard();
+      };
+
+      document.getElementById('btn-restore-backup')?.addEventListener('click', restoreLastSnapshot);
+
+      document.getElementById('btn-clear-all-data')?.addEventListener('click', () => {
+        wipeAllCards();
+        const inputEl = document.getElementById('statement-file-input');
+        if (inputEl) inputEl.value = '';
+        const statusEl = document.getElementById('import-status-text');
+        if (statusEl) {
+          statusEl.innerHTML = cachedUploadedBatches.length > 0
+            ? `Dashboard cleared. Click <strong>Re-load uploaded files</strong> above, <strong>Undo / Restore</strong>, or select new files.`
+            : `All data cleared. Click <strong>Undo / Restore Last Data</strong>, upload bank statements, or click <strong>+ Add Card</strong> below.`;
+        }
+      });
+
+      document.getElementById('btn-remove-all-cards')?.addEventListener('click', wipeAllCards);
+
+      document.getElementById('btn-clear-my-debt')?.addEventListener('click', () => {
+        cards = [
+          {
+            id: `my-card-${Date.now()}-1`,
+            name: 'Card #1 (High APR)',
+            balance: 4500.00,
+            limit: 10000.00,
+            apr: 24.99,
+            minPayment: 135.00,
+            promoKeepBalance: 0,
+            promoKeepApr: 0,
+            promoKeepPayment: 0,
+            note: 'Click any value to edit'
+          },
+          {
+            id: `my-card-${Date.now()}-2`,
+            name: 'Card #2',
+            balance: 2000.00,
+            limit: 5000.00,
+            apr: 18.99,
+            minPayment: 60.00,
+            promoKeepBalance: 0,
+            promoKeepApr: 0,
+            promoKeepPayment: 0,
+            note: 'Click any value to edit'
+          }
+        ];
+        state.lumpSum = 0;
+        state.extraMonthly = 100;
+        const sliderLumpEl = document.getElementById('slider-lump');
+        const sliderExtraEl = document.getElementById('slider-extra');
+        if (sliderLumpEl) sliderLumpEl.value = 0;
+        if (sliderExtraEl) sliderExtraEl.value = 100;
+        renderCardsTable();
+        updateDashboard();
+      });
+
+      document.getElementById('btn-add-custom-var')?.addEventListener('click', () => {
+        customVars.push({
+          id: `cv-${Date.now()}`,
+          name: `Custom Variable #${customVars.length + 1}`,
+          type: 'monthly_income',
+          value: 0
+        });
+        renderCustomVariables();
+        updateDashboard();
+      });
+
+      document.getElementById('btn-copy-plan')?.addEventListener('click', () => {
+        const totalBal = cards.reduce((s, c) => s + c.balance, 0);
+        const totalMin = cards.reduce((s, c) => s + c.minPayment, 0);
+        const sorted = [...cards].sort((a, b) => b.apr - a.apr);
+        const lines = [
+          `MY CREDIT CARD PAYOFF PLAN`,
+          `Total Debt: ${fmtCurrencyExact(totalBal)} | Current Minimums: ${fmtCurrencyExact(totalMin)}/mo`,
+          `Target Refinance APR: ${state.consolApr.toFixed(1)}% | Extra Monthly: ${fmtCurrency(state.extraMonthly)} | Lump Sum: ${fmtCurrency(state.lumpSum)}`,
+          ``,
+          `PAYOFF PRIORITY ORDER (HIGHEST APR FIRST):`,
+          ...sorted.map((c, i) => `${i + 1}. ${c.name}: ${fmtCurrencyExact(c.balance)} @ ${c.apr.toFixed(2)}% APR (Min: ${fmtCurrencyExact(c.minPayment)}/mo)`)
+        ];
+        const textarea = document.createElement('textarea');
+        textarea.value = lines.join('\n');
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        const copyBtn = document.getElementById('btn-copy-plan');
+        if (copyBtn) {
+          const orig = copyBtn.textContent;
+          copyBtn.textContent = 'Copied to Clipboard!';
+          setTimeout(() => {
+            copyBtn.textContent = orig;
+          }, 2000);
+        }
+      });
+
+      document.getElementById('btn-reset')?.addEventListener('click', () => {
+        cards = JSON.parse(JSON.stringify(INITIAL_CARDS));
+        state = {
+          consolApr: 11.5,
+          extraMonthly: 200,
+          lumpSum: 2500,
+          loanTerm: 48,
+          priorityWeight: 50,
+          netIncome: 8200,
+          fixedExpenses: 4200
+        };
+        customVars = [
+          {
+            id: 'cv-1',
+            name: 'Side Income / Expense Cut',
+            type: 'monthly_income',
+            value: 0
+          }
+        ];
+        document.getElementById('slider-apr').value = state.consolApr;
+        document.getElementById('slider-extra').value = state.extraMonthly;
+        document.getElementById('slider-lump').value = state.lumpSum;
+        document.getElementById('slider-priority').value = state.priorityWeight;
+        document.getElementById('input-income').value = state.netIncome;
+        document.getElementById('input-fixed').value = state.fixedExpenses;
+
+        document.querySelectorAll('.term-btn').forEach((b) => {
+          b.className =
+            Number(b.dataset.term) === 48
+              ? 'term-btn px-3 py-1 text-xs font-mono font-semibold rounded bg-white text-brand-900 shadow-2xs transition'
+              : 'term-btn px-3 py-1 text-xs font-mono font-semibold rounded text-slate-600 hover:text-slate-900 transition';
+        });
+
+        renderCustomVariables();
+        renderCardsTable();
+        updateDashboard();
+      });
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      bindEvents();
+      renderCustomVariables();
+      renderCardsTable();
+      updateDashboard();
+    });
+  </script>
+</body>
+</html>
